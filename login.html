@@ -238,8 +238,8 @@
 
             <form id="login-form" class="auth-form">
                 <div class="auth-input-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" placeholder="tuo@email.com" required autocomplete="email">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" placeholder="Il tuo username" required autocomplete="username">
                 </div>
 
                 <div class="auth-input-group">
@@ -295,7 +295,8 @@
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const email = document.getElementById('email').value;
+            const username = document.getElementById('username').value.trim();
+            const email = `${username}@portafoglio.app`;
             const password = document.getElementById('password').value;
 
             // Hide messages
@@ -320,13 +321,13 @@
 
                 switch (error.code) {
                     case 'auth/user-not-found':
-                        errorMsg = 'Account non trovato. Verifica l\'email.';
+                        errorMsg = 'Username non trovato.';
                         break;
                     case 'auth/wrong-password':
                         errorMsg = 'Password errata. Riprova.';
                         break;
                     case 'auth/invalid-email':
-                        errorMsg = 'Email non valida.';
+                        errorMsg = 'Username non valido.';
                         break;
                     case 'auth/user-disabled':
                         errorMsg = 'Account disabilitato.';
