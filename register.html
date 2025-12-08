@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrazione - Gestore Spese</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--bg-color) 0%, #1a1a2e 100%);
+        }
+
+        .auth-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .auth-header .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+
+        .auth-header .logo i {
+            color: var(--primary-color);
+            font-size: 2rem;
+        }
+
+        .auth-header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .auth-header p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .auth-input-group {
+            position: relative;
+        }
+
+        .auth-input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .auth-input-group input {
+            width: 100%;
+            padding: 14px 16px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .auth-input-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            background-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .auth-input-group input::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        .auth-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #9b59b6 100%);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .auth-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(142, 68, 173, 0.4);
+        }
+
+        .auth-btn:active {
+            transform: translateY(0);
+        }
+
+        .auth-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .auth-link {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .auth-link a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .auth-link a:hover {
+            color: #9b59b6;
+            text-decoration: underline;
+        }
+
+        .error-message {
+            background-color: rgba(192, 57, 43, 0.1);
+            border: 1px solid var(--danger-color);
+            color: var(--danger-color);
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .success-message {
+            background-color: rgba(39, 174, 96, 0.1);
+            border: 1px solid var(--success-color);
+            color: var(--success-color);
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 16px;
+            top: 42px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: color 0.2s;
+        }
+
+        .password-toggle:hover {
+            color: var(--text-primary);
+        }
+
+        .password-strength {
+            height: 4px;
+            background-color: var(--border-color);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .password-strength-bar {
+            height: 100%;
+            width: 0%;
+            transition: all 0.3s ease;
+        }
+
+        .password-strength-bar.weak {
+            width: 33%;
+            background-color: var(--danger-color);
+        }
+
+        .password-strength-bar.medium {
+            width: 66%;
+            background-color: #f39c12;
+        }
+
+        .password-strength-bar.strong {
+            width: 100%;
+            background-color: var(--success-color);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="logo">
+                    <i class="fas fa-wallet"></i>
+                    <span>Portafoglio</span>
+                </div>
+                <h1>Crea Account</h1>
+                <p>Inizia a gestire le tue finanze</p>
+            </div>
+
+            <div id="error-message" class="error-message"></div>
+            <div id="success-message" class="success-message"></div>
+
+            <form id="register-form" class="auth-form">
+                <div class="auth-input-group">
+                    <label for="name">Nome</label>
+                    <input type="text" id="name" placeholder="Il tuo nome" required autocomplete="name">
+                </div>
+
+                <div class="auth-input-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" placeholder="tuo@email.com" required autocomplete="email">
+                </div>
+
+                <div class="auth-input-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Minimo 6 caratteri" required
+                        autocomplete="new-password">
+                    <i class="fas fa-eye password-toggle" id="toggle-password"></i>
+                    <div class="password-strength">
+                        <div class="password-strength-bar" id="password-strength-bar"></div>
+                    </div>
+                </div>
+
+                <div class="auth-input-group">
+                    <label for="confirm-password">Conferma Password</label>
+                    <input type="password" id="confirm-password" placeholder="••••••••" required
+                        autocomplete="new-password">
+                    <i class="fas fa-eye password-toggle" id="toggle-confirm-password" style="top: 42px;"></i>
+                </div>
+
+                <button type="submit" class="auth-btn" id="register-btn">
+                    <i class="fas fa-user-plus"></i> Crea Account
+                </button>
+            </form>
+
+            <div class="auth-link">
+                Hai già un account? <a href="login.html">Accedi</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <!-- Firebase Config -->
+    <script src="firebase-config.js"></script>
+
+    <!-- Register Script -->
+    <script>
+        const registerForm = document.getElementById('register-form');
+        const registerBtn = document.getElementById('register-btn');
+        const errorMessage = document.getElementById('error-message');
+        const successMessage = document.getElementById('success-message');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirm-password');
+        const togglePassword = document.getElementById('toggle-password');
+        const toggleConfirmPassword = document.getElementById('toggle-confirm-password');
+        const passwordStrengthBar = document.getElementById('password-strength-bar');
+
+        // Password toggles
+        togglePassword.addEventListener('click', () => {
+            const type = passwordInput.type === 'password' ? 'text' : 'password';
+            passwordInput.type = type;
+            togglePassword.classList.toggle('fa-eye');
+            togglePassword.classList.toggle('fa-eye-slash');
+        });
+
+        toggleConfirmPassword.addEventListener('click', () => {
+            const type = confirmPasswordInput.type === 'password' ? 'text' : 'password';
+            confirmPasswordInput.type = type;
+            toggleConfirmPassword.classList.toggle('fa-eye');
+            toggleConfirmPassword.classList.toggle('fa-eye-slash');
+        });
+
+        // Password strength checker
+        passwordInput.addEventListener('input', () => {
+            const password = passwordInput.value;
+            let strength = 0;
+
+            // Length check
+            if (password.length >= 6) strength++;
+            if (password.length >= 10) strength++;
+
+            // Character variety
+            if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+            if (/[0-9]/.test(password)) strength++;
+            if (/[^a-zA-Z0-9]/.test(password)) strength++;
+
+            // Update strength bar
+            passwordStrengthBar.className = 'password-strength-bar';
+            if (strength <= 2) {
+                passwordStrengthBar.classList.add('weak');
+            } else if (strength <= 4) {
+                passwordStrengthBar.classList.add('medium');
+            } else {
+                passwordStrengthBar.classList.add('strong');
+            }
+        });
+
+        // Check if already logged in
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                window.location.href = 'index.html';
+            }
+        });
+
+        // Register form submission
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+
+            // Hide messages
+            errorMessage.classList.remove('show');
+            successMessage.classList.remove('show');
+
+            // Validation
+            if (password !== confirmPassword) {
+                errorMessage.textContent = 'Le password non corrispondono.';
+                errorMessage.classList.add('show');
+                return;
+            }
+
+            if (password.length < 6) {
+                errorMessage.textContent = 'La password deve essere di almeno 6 caratteri.';
+                errorMessage.classList.add('show');
+                return;
+            }
+
+            // Disable button
+            registerBtn.disabled = true;
+            registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creazione account...';
+
+            try {
+                // Create user
+                const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+
+                // Update profile with name
+                await user.updateProfile({
+                    displayName: name
+                });
+
+                // Create user profile in Firestore
+                const db = firebase.firestore();
+                await db.collection('users').doc(user.uid).set({
+                    displayName: name,
+                    email: email,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // Initialize empty collections
+                await db.collection('users').doc(user.uid).collection('wallets').doc('default').set({
+                    id: 'default',
+                    name: 'Principale',
+                    type: 'general',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                successMessage.textContent = 'Account creato con successo! Reindirizzamento...';
+                successMessage.classList.add('show');
+
+                // Redirect will happen automatically via onAuthStateChanged
+            } catch (error) {
+                console.error('Registration error:', error);
+
+                let errorMsg = 'Errore durante la registrazione. Riprova.';
+
+                switch (error.code) {
+                    case 'auth/email-already-in-use':
+                        errorMsg = 'Questa email è già registrata.';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMsg = 'Email non valida.';
+                        break;
+                    case 'auth/weak-password':
+                        errorMsg = 'Password troppo debole.';
+                        break;
+                    case 'auth/network-request-failed':
+                        errorMsg = 'Errore di connessione. Verifica la tua rete.';
+                        break;
+                }
+
+                errorMessage.textContent = errorMsg;
+                errorMessage.classList.add('show');
+
+                registerBtn.disabled = false;
+                registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> Crea Account';
+            }
+        });
+    </script>
+</body>
+
+</html>

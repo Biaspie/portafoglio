@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestore Spese</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="app-wrapper">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-wallet"></i>
+                    <span>Portafoglio</span>
+                </div>
+            </div>
+
+            <!-- Wallet Selector -->
+            <div class="wallet-selector-container">
+                <div class="wallet-selector" id="wallet-selector">
+                    <span id="current-wallet-name">Principale</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="wallet-dropdown hidden" id="wallet-dropdown">
+                    <ul id="wallet-list">
+                        <!-- Wallets injected here -->
+                    </ul>
+                    <button id="btn-add-wallet" class="add-wallet-btn">
+                        <i class="fas fa-plus"></i> Nuovo Portafoglio
+                    </button>
+                </div>
+            </div>
+
+            <ul class="nav-links">
+                <li class="active" id="nav-dashboard">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </li>
+                <li id="nav-analysis">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Analisi</span>
+                </li>
+                <li id="nav-investments">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Investimenti</span>
+                </li>
+                <li id="nav-recurring">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Ricorrenti</span>
+                </li>
+                <li id="nav-debts">
+                    <i class="fas fa-hand-holding-usd"></i>
+                    <span>Debiti</span>
+                </li>
+            </ul>
+
+            <div class="user-profile-section"
+                style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border-color); margin-bottom: 60px;">
+                <div class="user-info" style="margin-bottom: 10px; padding: 0 15px;">
+                    <div id="user-name" style="font-weight: 600; color: var(--text-primary);">Utente</div>
+                    <div id="user-email"
+                        style="font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        email@esempio.com</div>
+                </div>
+                <button id="logout-btn" class="nav-links"
+                    style="width: 100%; background: none; border: none; text-align: left; padding: 0;">
+                    <li style="color: var(--danger-color);">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Esci</span>
+                    </li>
+                </button>
+            </div>
+            <button id="sidebar-toggle" class="toggle-btn">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard View -->
+            <section id="dashboard-view">
+                <header>
+                    <h1>Il Mio Portafoglio</h1>
+                    <div class="balance-card">
+                        <div class="balance-label">Saldo Totale</div>
+                        <div class="balance-amount" id="total-balance">€ 0.00</div>
+                        <div class="balance-details">
+                            <div class="detail-item income">
+                                <div class="detail-label">Entrate</div>
+                                <div class="detail-value" id="total-income">+€ 0.00</div>
+                            </div>
+                            <div class="detail-item expense">
+                                <div class="detail-label">Uscite</div>
+                                <div class="detail-value" id="total-expense">-€ 0.00</div>
+                            </div>
+                            <div class="detail-item investments">
+                                <div class="detail-label">Investimenti</div>
+                                <div class="detail-value" id="total-investments-dashboard">€ 0.00</div>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                <section class="quick-actions">
+                    <button id="btn-income" class="action-btn income">
+                        <i class="fas fa-arrow-down"></i> Entrata
+                    </button>
+                    <button id="btn-expense" class="action-btn expense">
+                        <i class="fas fa-arrow-up"></i> Uscita
+                    </button>
+                </section>
+
+                <section class="transactions-section">
+                    <div class="section-header">
+                        <h2>Transazioni Recenti</h2>
+                        <button id="clear-all" class="text-btn">Pulisci tutto</button>
+                    </div>
+                    <ul id="transaction-list" class="transaction-list">
+                        <!-- Transactions will be added here dynamically -->
+                        <li class="empty-state">
+                            <i class="fas fa-wallet"></i>
+                            <p>Nessuna transazione ancora</p>
+                        </li>
+                    </ul>
+                </section>
+            </section>
+
+            <!-- Analysis View -->
+            <section id="analysis-view" class="hidden">
+                <header>
+                    <h1>Analisi Finanziaria</h1>
+                </header>
+
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Andamento Patrimonio</h3>
+                        <div class="chart-container">
+                            <canvas id="balance-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <h3>Spese per Categoria</h3>
+                        <div class="month-selector">
+                            <button id="prev-month-analysis" class="nav-btn-small"><i
+                                    class="fas fa-chevron-left"></i></button>
+                            <span id="current-month-analysis">Dicembre 2023</span>
+                            <button id="next-month-analysis" class="nav-btn-small"><i
+                                    class="fas fa-chevron-right"></i></button>
+                        </div>
+                        <div class="chart-container pie-container">
+                            <canvas id="expense-pie-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Investments View -->
+            <section id="investments-view" class="hidden">
+                <header>
+                    <h1>I Miei Investimenti</h1>
+                    <div class="balance-card">
+                        <div class="balance-label">Valore Portafoglio</div>
+                        <div class="balance-amount" id="total-invested">€ 0.00</div>
+                        <div class="balance-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Profitto/Perdita</div>
+                                <div class="detail-value" id="total-pl">€ 0.00 (0%)</div>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                <div class="section-header">
+                    <h2>Allocazione Portafoglio</h2>
+                </div>
+                <div class="chart-card" style="margin-bottom: 30px;">
+                    <div class="chart-container pie-container">
+                        <canvas id="allocation-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="section-header">
+                    <h2>Asset</h2>
+                    <button id="btn-add-asset" class="text-btn"><i class="fas fa-plus"></i> Aggiungi Asset</button>
+                </div>
+
+                <div id="investments-list" class="investments-grid">
+                    <!-- Assets will be added here -->
+                </div>
+            </section>
+
+            <!-- Recurring View -->
+            <section id="recurring-view" class="hidden">
+                <header>
+                    <h1>Spese Ricorrenti</h1>
+                </header>
+                <div class="transactions-section">
+                    <ul id="recurring-list" class="transaction-list">
+                        <!-- Recurring items added here -->
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Debts View -->
+            <section id="debts-view" class="hidden">
+                <header>
+                    <h1>Gestione Debiti</h1>
+                    <div class="balance-card">
+                        <div class="balance-label">Debito Totale Residuo</div>
+                        <div class="balance-amount" id="total-debt-remaining">€ 0.00</div>
+                    </div>
+                </header>
+
+                <div class="view-toggle-container">
+                    <button id="btn-debts-active" class="view-toggle-btn active">Attivi</button>
+                    <button id="btn-debts-archive" class="view-toggle-btn">Archivio</button>
+                </div>
+
+                <div class="section-header">
+                    <h2>Prestiti Attivi</h2>
+                    <button id="btn-add-loan" class="text-btn"><i class="fas fa-plus"></i> Aggiungi Prestito</button>
+                </div>
+                <div id="loans-list" class="investments-grid">
+                    <!-- Loans added here -->
+                </div>
+
+                <div class="section-header" style="margin-top: 40px;">
+                    <h2>Carte Revolving</h2>
+                    <button id="btn-add-revolving" class="text-btn"><i class="fas fa-plus"></i> Aggiungi Carta</button>
+                </div>
+                <div id="revolving-list" class="investments-grid">
+                    <!-- Revolving cards added here -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal for Adding Transaction -->
+    <div id="transaction-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Nuova Transazione</h3>
+                <button id="close-modal" class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="transaction-form">
+                <div class="form-group">
+                    <label for="wallet-select-transaction">Portafoglio</label>
+                    <select id="wallet-select-transaction">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+
+                <div class="form-group type-selector">
+                    <input type="radio" name="type" id="type-expense" value="expense" checked>
+                    <label for="type-expense" class="type-label expense">Uscita</label>
+
+                    <input type="radio" name="type" id="type-income" value="income">
+                    <label for="type-income" class="type-label income">Entrata</label>
+                </div>
+
+                <div class="form-group">
+                    <label for="amount">Importo (€)</label>
+                    <input type="number" id="amount" placeholder="0.00" step="0.01" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="category">Categoria</label>
+                    <select id="category" required>
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="date">Data</label>
+                    <input type="date" id="date" required>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="is-recurring">
+                    <label for="is-recurring">Transazione Ricorrente</label>
+                </div>
+
+                <div class="form-group hidden" id="frequency-group">
+                    <label for="frequency">Frequenza</label>
+                    <select id="frequency">
+                        <option value="monthly">Mensile</option>
+                        <option value="weekly">Settimanale</option>
+                        <option value="yearly">Annuale</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Descrizione (Opzionale)</label>
+                    <input type="text" id="description" placeholder="Es. Pizza con amici">
+                </div>
+
+                <button type="submit" class="submit-btn">Aggiungi Transazione</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Adding Asset -->
+    <div id="asset-modal" class="modal">
+        <div class="modal-content modal-content-sticky">
+            <div class="modal-header">
+                <h3>Nuovo Asset</h3>
+                <button id="close-asset-modal" class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="asset-form">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="asset-select">Nome Asset</label>
+                        <select id="asset-select" required>
+                            <!-- Populated by JS -->
+                        </select>
+                        <input type="text" id="asset-name-custom" placeholder="Nome Asset" class="hidden">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="asset-quantity">Quantità</label>
+                        <input type="number" id="asset-quantity" step="any" placeholder="Es. 0.5">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="asset-invested">Importo Investito (€)</label>
+                        <input type="number" id="asset-invested" placeholder="0.00" step="0.01" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="asset-current">Valore Attuale (€)</label>
+                        <input type="number" id="asset-current" placeholder="0.00" step="0.01" required>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" class="submit-btn">Aggiungi Asset</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Adding Wallet -->
+    <div id="wallet-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Nuovo Portafoglio</h3>
+                <button id="close-wallet-modal" class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="wallet-form">
+                <div class="form-group">
+                    <label for="wallet-name">Nome Portafoglio</label>
+                    <input type="text" id="wallet-name" placeholder="Es. Banca Intesa" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="wallet-type">Tipo</label>
+                    <select id="wallet-type">
+                        <option value="general">Generale</option>
+                        <option value="bank">Conto Bancario</option>
+                        <option value="cash">Contanti</option>
+                        <option value="savings">Risparmi</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="submit-btn">Crea Portafoglio</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Adding Loan -->
+    <div id="loan-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Nuovo Prestito</h3>
+                <button id="close-loan-modal" class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="loan-form">
+                <div class="form-group">
+                    <label for="loan-name">Nome Prestito</label>
+                    <input type="text" id="loan-name" placeholder="Es. Mutuo Casa" required>
+                </div>
+                <div class="form-group">
+                    <label for="loan-amount">Importo Finanziato (€)</label>
+                    <input type="number" id="loan-amount" placeholder="0.00" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="loan-rate">Tasso di Interesse Annuo (%)</label>
+                    <input type="number" id="loan-rate" placeholder="Es. 3.5" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="loan-months">Durata (Mesi)</label>
+                    <input type="number" id="loan-months" placeholder="Es. 240" required>
+                </div>
+                <div class="form-group">
+                    <label for="loan-start-date">Data Inizio</label>
+                    <input type="date" id="loan-start-date" required>
+                </div>
+                <button type="submit" class="submit-btn">Aggiungi Prestito</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Adding Revolving Card -->
+    <div id="revolving-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Nuova Carta Revolving</h3>
+                <button id="close-revolving-modal" class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="revolving-form">
+                <div class="form-group">
+                    <label for="revolving-name">Nome Carta</label>
+                    <input type="text" id="revolving-name" placeholder="Es. Carta Gold" required>
+                </div>
+                <div class="form-group">
+                    <label for="revolving-limit">Plafond / Limite (€)</label>
+                    <input type="number" id="revolving-limit" placeholder="0.00" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="revolving-balance">Saldo Utilizzato (€)</label>
+                    <input type="number" id="revolving-balance" placeholder="0.00" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="revolving-rate">Tasso Interesse (%)</label>
+                    <input type="number" id="revolving-rate" placeholder="Es. 12.5" step="0.01">
+                </div>
+                <button type="submit" class="submit-btn">Aggiungi Carta</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Amortization Plan -->
+    <div id="amortization-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>Piano di Ammortamento</h3>
+                <button id="close-amortization-modal" class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table class="amortization-table"
+                    style="width: 100%; border-collapse: collapse; color: var(--text-secondary); font-size: 0.9rem;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
+                            <th style="padding: 10px;">Mese</th>
+                            <th style="padding: 10px;">Data</th>
+                            <th style="padding: 10px;">Rata</th>
+                            <th style="padding: 10px;">Quota Cap.</th>
+                            <th style="padding: 10px;">Quota Int.</th>
+                            <th style="padding: 10px;">Residuo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="amortization-body">
+                        <!-- Rows populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Asset Details -->
+    <div id="asset-details-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 id="asset-details-title">Dettagli Asset</h3>
+                <button id="close-asset-details-modal" class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="asset-details-content">
+                <!-- Details populated by JS -->
+            </div>
+            <div class="section-header" style="margin-top: 20px;">
+                <h4>Storico Transazioni</h4>
+            </div>
+            <div style="max-height: 300px; overflow-y: auto;">
+                <table class="amortization-table"
+                    style="width: 100%; border-collapse: collapse; color: var(--text-secondary); font-size: 0.9rem;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
+                            <th style="padding: 10px;">Data</th>
+                            <th style="padding: 10px;">Tipo</th>
+                            <th style="padding: 10px;">Quantità</th>
+                            <th style="padding: 10px;">Prezzo</th>
+                            <th style="padding: 10px;">Totale</th>
+                        </tr>
+                    </thead>
+                    <tbody id="asset-history-body">
+                        <!-- Rows populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <!-- Firebase Config -->
+    <script src="firebase-config.js"></script>
+
+    <!-- Auth Check -->
+    <script>
+        // Check authentication state
+        firebase.auth().onAuthStateChanged((user) => {
+            if (!user) {
+                // User is not signed in, redirect to login page
+                window.location.href = 'login.html';
+            } else {
+                // User is signed in, update UI
+                const userNameEl = document.getElementById('user-name');
+                const userEmailEl = document.getElementById('user-email');
+
+                if (userNameEl) userNameEl.textContent = user.displayName || 'Utente';
+                if (userEmailEl) userEmailEl.textContent = user.email;
+
+                console.log('User authenticated:', user.email);
+            }
+        });
+
+        // Logout functionality
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            firebase.auth().signOut().then(() => {
+                window.location.href = 'login.html';
+            }).catch((error) => {
+                console.error('Logout error:', error);
+            });
+        });
+    </script>
+
+    <!-- Database Operations -->
+    <script src="database.js"></script>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
