@@ -1997,6 +1997,8 @@ btnAddAsset.addEventListener('click', () => {
     assetForm.reset();
     document.getElementById('asset-date').valueAsDate = new Date();
     assetModal.classList.add('active');
+    // Trigger change to update UI (wallet section visibility)
+    document.getElementById('asset-select').dispatchEvent(new Event('change'));
 });
 closeAssetModalBtn.addEventListener('click', () => closeAssetModal());
 assetForm.addEventListener('submit', addAsset);
