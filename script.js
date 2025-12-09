@@ -379,8 +379,9 @@ async function init() {
 function updateUI() {
     listEl.innerHTML = '';
 
-    // Filter by current wallet
-    const walletTransactions = transactions.filter(t => t.walletId === currentWalletId);
+    // Filter by current wallet or if it's a card transaction (global/mixed logic as per user request)
+    // User wants to see card transactions in the list.
+    const walletTransactions = transactions.filter(t => t.walletId === currentWalletId || t.sourceType === 'card');
 
     // Sort transactions by date descending for list
     walletTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -541,6 +542,10 @@ function addTransactionDOM(transaction) {
     const categoryData = allCategories[transaction.category] || allCategories.other;
     const iconClass = categoryData.icon;
 
+    // Card Indicator
+    const isCard = transaction.sourceType === 'card';
+    const sourceIcon = isCard ? '<i class="fas fa-credit-card" title="Pagato con Carta di Credito" style="margin-right: 5px; color: var(--warning-color);"></i>' : '';
+
     item.innerHTML = `
         <div class="t-info">
             <div class="t-icon">
@@ -548,7 +553,7 @@ function addTransactionDOM(transaction) {
             </div>
             <div class="t-details">
                 <h4>${transaction.description}</h4>
-                <small>${formatDate(transaction.date)}</small>
+                <small>${sourceIcon} ${formatDate(transaction.date)}</small>
             </div>
         </div>
         <div class="t-actions">
