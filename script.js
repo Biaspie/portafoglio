@@ -315,7 +315,13 @@ async function init() {
 
             if (unsubscribeLoans) unsubscribeLoans();
             unsubscribeLoans = window.dbOps.subscribeToLoans((data) => {
-                loans = data;
+                // Split into active and archived based on status or history
+                loans = data.filter(l => l.status !== 'archived');
+                archivedLoans = data.filter(l => l.status === 'archived');
+
+                // Also support legacy local archive if needed, or migration
+                // For now, trust the DB status.
+
                 renderDebts();
             });
 
@@ -1698,37 +1704,29 @@ function viewAmortization(id) {
     amortizationModal.classList.add('active');
 }
 
+// Archive Loan (Persistent)
 async function archiveLoan(id) {
-    const loan = loans.find(l => l.id === id);
-    if (!loan) return;
-
-    // In a real app this would update a 'status' field in DB.
-    // For now we simulate moving to local archive array but we should really update DB
-    // But since I can't easily change DB schema right now, I'll assume we just filter locally or
-    // strictly speaking, we should have an 'archived' field.
-    // Let's implement a local-only move for now as the user asked for simple archiving
-
-    // Actually, better: Update loan in DB to have status = 'archived'
-    // But database.js updateLoan is not fully implemented for status.
-    // Let's stick to the local array manipulation style for consistency with existing code
-    // UNLESS database support is easy.
-    // The previous code seemed to rely on `archivedLoans` array.
-
-    loans = loans.filter(l => l.id !== id);
-    archivedLoans.push(loan);
-    // Persist to local storage for now as a fallback or if using hybrid
-    localStorage.setItem('archivedLoans', JSON.stringify(archivedLoans));
-    renderDebts();
+    if (confirm('Archiviare questo prestito?')) {
+        try {
+            await window.dbOps.updateLoan(id, { status: 'archived' });
+            // UI update happens automatically via subscription
+        } catch (e) {
+            console.error(e);
+            alert('Errore durante l\'archiviazione');
+        }
+    }
 }
 
+// Restore Loan (Persistent)
 async function restoreLoan(id) {
-    const loan = archivedLoans.find(l => l.id === id);
-    if (!loan) return;
-
-    archivedLoans = archivedLoans.filter(l => l.id !== id);
-    loans.push(loan);
-    localStorage.setItem('archivedLoans', JSON.stringify(archivedLoans));
-    renderDebts();
+    if (confirm('Ripristinare questo prestito?')) {
+        try {
+            await window.dbOps.updateLoan(id, { status: 'active' });
+        } catch (e) {
+            console.error(e);
+            alert('Errore durante il ripristino');
+        }
+    }
 }
 
 // Navigation Functions

@@ -174,6 +174,18 @@ const deleteLoanFromDb = async (id) => {
     }
 };
 
+// Update Loan
+const updateLoan = async (id, updates) => {
+    const userRef = getUserRef();
+    if (!userRef) return;
+    try {
+        await userRef.collection('loans').doc(id).update(updates);
+    } catch (error) {
+        console.error('Error updating loan:', error);
+        throw error;
+    }
+};
+
 // Add revolving card
 const addRevolvingToDb = async (card) => {
     const userRef = getUserRef();
@@ -216,6 +228,7 @@ window.dbOps = {
     addLoanToDb,
     subscribeToLoans,
     deleteLoanFromDb,
+    updateLoan,
     addRevolvingToDb,
     subscribeToRevolving,
 
