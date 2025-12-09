@@ -1467,12 +1467,11 @@ function renderRevolving() {
         const item = document.createElement('div');
         item.className = `debt-card ${isArchived ? 'archived' : ''}`;
         item.innerHTML = `
-            <div class="debt-header">
                 <div>
                     <div class="debt-title">${card.name}</div>
                     <div class="debt-subtitle">Plafond: € ${parseFloat(card.limit).toFixed(2)}</div>
                 </div>
-                <div class="debt-amount" style="color: var(--danger-color)">-€ ${parseFloat(card.balance).toFixed(2)}</div>
+                <div class="debt-amount">-€ ${parseFloat(card.balance).toFixed(2)}</div>
             </div>
             <div class="progress-container">
                 <div class="progress-bar ${progressClass}" style="width: ${utilization}%"></div>
