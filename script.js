@@ -1449,6 +1449,97 @@ function renderDebts() {
     renderLoans();
     renderRevolving();
     updateTotalDebt();
+    renderUpcomingDeadlines();
+}
+
+function renderUpcomingDeadlines() {
+    const reportList = document.getElementById('installments-report');
+    if (!reportList) return;
+
+    reportList.innerHTML = '';
+    const deadlines = [];
+
+    // 1. Active Loans
+    if (loans) {
+        loans.filter(l => !l.settled).forEach(loan => {
+            const start = new Date(loan.startDate);
+            const today = new Date();
+            let nextDate = new Date(start);
+            while (nextDate <= today) {
+                nextDate.setMonth(nextDate.getMonth() + 1);
+            }
+
+            const monthlyRate = loan.rate / 100 / 12;
+            const payment = (loan.amount * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -loan.months));
+
+            deadlines.push({
+                date: nextDate,
+                desc: `${loan.name} (Rata)`,
+                amount: payment,
+                type: 'Mutuo'
+            });
+        });
+    }
+
+    // 2. Installment Plans
+    if (installmentPlans) {
+        installmentPlans.filter(p => p.status === 'active').forEach(plan => {
+            const nextInst = plan.installments.find(i => i.status === 'pending');
+            if (nextInst) {
+                deadlines.push({
+                    date: new Date(nextInst.dueDate),
+                    desc: `${plan.name} (Rata ${nextInst.number}/${plan.installmentsCount})`,
+                    amount: nextInst.amount,
+                    type: 'Rate'
+                });
+            }
+        });
+    }
+
+    // 3. Revolving Cards
+    if (revolvingCards) {
+        revolvingCards.forEach(card => {
+            const today = new Date();
+            let nextDate = new Date(today.getFullYear(), today.getMonth(), card.billingDay);
+            if (nextDate <= today) {
+                nextDate.setMonth(nextDate.getMonth() + 1);
+            }
+            // Estimate payment (simplified: 5% of limit or used?)
+            // We'll just show the date and "Scadenza Carta"
+            deadlines.push({
+                date: nextDate,
+                desc: `${card.name} (Addebito)`,
+                amount: 0, // variable
+                type: 'Revolving'
+            });
+        });
+    }
+
+    // Sort and Take Top 5
+    deadlines.sort((a, b) => a.date - b.date);
+    const upcoming = deadlines.slice(0, 5);
+
+    if (upcoming.length === 0) {
+        reportList.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.9rem;">Nessuna scadenza imminente.</p>';
+        return;
+    }
+
+    upcoming.forEach(item => {
+        const div = document.createElement('div');
+        div.style.cssText = 'display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding: 8px 0; font-size: 0.9rem; align-items: center;';
+
+        const dateStr = item.date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+        const amountStr = item.amount > 0 ? `€ ${item.amount.toFixed(2)}` : 'Variabile';
+
+        div.innerHTML = `
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <span style="font-weight: bold; color: var(--accent-color); min-width: 50px;">${dateStr}</span>
+                <span>${item.desc}</span>
+            </div>
+            <div style="font-weight: 500;">${amountStr}</div>
+        `;
+        reportList.appendChild(div);
+    });
 }
 
 function renderLoans() {
