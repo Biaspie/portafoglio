@@ -1366,118 +1366,56 @@ function renderRecurring() {
         });
     });
 
-    // 2. Installment Plans (BNPL)
-    if (installmentPlans) {
-        installmentPlans.filter(p => p.status === 'active').forEach(plan => {
-            const nextInst = plan.installments.find(i => i.status === 'pending');
-            if (nextInst) {
-                allItems.push({
-                    type: 'installment',
-                    id: plan.id,
-                    description: `${plan.name} (Rata ${nextInst.number}/${plan.installmentsCount})`,
-                    amount: nextInst.amount,
-                    date: nextInst.dueDate,
-                    category: 'shopping', // Default category
-                    source: plan
-                });
-            }
-        });
-    }
-
-    // 3. Active Loans (Next Payment)
-    if (loans) {
-        loans.filter(l => !l.settled).forEach(loan => {
-            // Calculate next payment date based on start date and today
-            const start = new Date(loan.startDate);
-            const today = new Date();
-
-            // Find first payment date > today
-            let nextDate = new Date(start);
-            // Simple monthly iteration until future
-            while (nextDate <= today) {
-                nextDate.setMonth(nextDate.getMonth() + 1);
-            }
-
-            // Calculate monthly payment (amortization)
-            const monthlyRate = loan.rate / 100 / 12;
-            const payment = (loan.amount * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -loan.months));
-
-            allItems.push({
-                type: 'loan',
-                id: loan.id,
-                description: `${loan.name} (Rata Mutuo/Prestito)`,
-                amount: payment,
-                date: nextDate.toISOString().split('T')[0],
-                category: 'bills',
-                source: loan
-            });
-        });
-    }
+    /* 
+    // Excluded Debts from Recurring View as per user request
+    if (installmentPlans) { ... }
+    if (loans) { ... }
+    */
 
     // Sort by Date
     allItems.sort((a, b) => new Date(a.date) - new Date(b.date));
 
     if (allItems.length === 0) {
         recurringListEl.innerHTML = `
-            <li class="empty-state">
+            <div class="empty-state">
                 <i class="fas fa-sync-alt"></i>
                 <p>Nessuna spesa ricorrente attiva</p>
-            </li>
+            </div>
         `;
         return;
     }
 
     allItems.forEach(item => {
-        const domItem = document.createElement('li');
-        domItem.classList.add('transaction-item');
-        domItem.classList.add('expense'); // All debts are expenses usually
+        const domItem = document.createElement('div');
+        domItem.classList.add('debt-card'); // Use Debt Card Style
 
         let iconClass = 'fa-circle-notch';
         let categoryLabel = 'Altro';
+        let color = '#ccc'; // Default
 
         if (allCategories[item.category]) {
             iconClass = allCategories[item.category].icon;
             categoryLabel = allCategories[item.category].label;
-        }
-
-        // Custom icons for debts
-        if (item.type === 'installment') iconClass = 'fa-credit-card';
-        if (item.type === 'loan') iconClass = 'fa-university';
-
-        const amountClass = 'expense';
-        const sign = '-';
-
-        let actionBtn = '';
-        if (item.type === 'flow') {
-            actionBtn = `
-                <button class="delete-btn" onclick="deleteRecurringFlow('${item.id}')">
-                    <i class="fas fa-trash"></i>
-                </button>
-            `;
-        } else {
-            // For debts, maybe a link to manage them?
-            actionBtn = `
-                <button class="delete-btn" style="opacity: 0.5; cursor: default;" title="Gestisci nella sezione Debiti">
-                    <i class="fas fa-info-circle"></i>
-                </button>
-            `;
+            color = allCategories[item.category].color;
         }
 
         domItem.innerHTML = `
-            <div class="t-info">
-                <div class="t-icon">
-                    <i class="fas ${iconClass}"></i>
+            <div class="debt-header">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div class="icon-circle" style="background-color: ${color}20; color: ${color}; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
+                        <i class="fas ${iconClass}"></i>
+                    </div>
+                    <div>
+                        <div class="debt-title">${item.description}</div>
+                        <div class="debt-subtitle">${categoryLabel} • Prossimo: ${formatDate(item.date)}</div>
+                    </div>
                 </div>
-                <div class="t-details">
-                    <h4>${item.description}</h4>
-                    <small>Prossimo: ${formatDate(item.date)}</small>
-                </div>
+                <div class="debt-amount" style="color: var(--danger-color);">€ ${item.amount.toFixed(2)}</div>
             </div>
-            <div class="t-actions">
-                <span class="t-amount ${amountClass}">
-                    ${sign}€ ${Math.abs(item.amount).toFixed(2)}
-                </span>
-                ${actionBtn}
+            <div class="debt-actions" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                <button class="btn-small delete" onclick="deleteRecurringFlow('${item.id}')" style="color: var(--danger-color); background: none; border: none;">
+                    <i class="fas fa-trash"></i> Elimina
+                </button>
             </div>
         `;
         recurringListEl.appendChild(domItem);
