@@ -1518,7 +1518,7 @@ function updateTotalDebt() {
         total += parseFloat(card.balance);
     });
 
-    const totalDebtEl = document.querySelector('.debt-amount.large.danger');
+    const totalDebtEl = document.getElementById('total-debt-remaining');
     if (totalDebtEl) {
         totalDebtEl.textContent = `€ ${total.toFixed(2)}`;
     }
