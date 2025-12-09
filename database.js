@@ -203,6 +203,7 @@ window.dbOps = {
     deleteInvestmentFromDb,
     addLoanToDb,
     subscribeToLoans,
+    deleteLoanFromDb,
     addRevolvingToDb,
     subscribeToRevolving,
 

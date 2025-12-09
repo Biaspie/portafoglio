@@ -1431,6 +1431,16 @@ function renderLoans() {
     });
 }
 
+window.deleteLoan = async function (id) {
+    if (confirm('Sei sicuro di voler eliminare questo prestito?')) {
+        try {
+            await window.dbOps.deleteLoanFromDb(id);
+        } catch (error) {
+            alert('Errore durante l\'eliminazione del prestito: ' + error.message);
+        }
+    }
+};
+
 function renderRevolving() {
     revolvingListEl.innerHTML = '';
     const targetCards = currentDebtView === 'active' ? revolvingCards : archivedRevolving;
