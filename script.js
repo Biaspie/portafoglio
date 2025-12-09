@@ -562,7 +562,7 @@ function addTransactionDOM(transaction) {
         </div>
         <div class="t-actions">
             <span class="t-amount ${transaction.type}">${sign}€ ${Math.abs(transaction.amount).toFixed(2)}</span>
-            <button class="delete-btn" onclick="removeTransaction(${transaction.id})">
+            <button class="delete-btn" onclick="removeTransaction('${transaction.id}')">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
