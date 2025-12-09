@@ -202,9 +202,24 @@
             <!-- Recurring View -->
             <section id="recurring-view" class="hidden">
                 <header>
-                    <h1>Spese Ricorrenti</h1>
+                    <h1>Spese Ricorrenti & Abbonamenti</h1>
                 </header>
+
                 <div class="transactions-section">
+                    <div class="section-header">
+                        <h2>Abbonamenti Attivi</h2>
+                    </div>
+                    <ul id="subscriptions-list" class="transaction-list" style="margin-bottom: 40px;">
+                        <!-- Subscriptions added here -->
+                        <li class="empty-state">
+                            <i class="fas fa-play-circle"></i>
+                            <p>Nessun abbonamento attivo</p>
+                        </li>
+                    </ul>
+
+                    <div class="section-header">
+                        <h2>Altre Spese Ricorrenti (Debiti & Rate)</h2>
+                    </div>
                     <ul id="recurring-list" class="transaction-list">
                         <!-- Recurring items added here -->
                     </ul>
@@ -238,11 +253,76 @@
                     <h2>Carte Revolving</h2>
                     <button id="btn-add-revolving" class="text-btn"><i class="fas fa-plus"></i> Aggiungi Carta</button>
                 </div>
-                <div id="revolving-list" class="investments-grid">
-                    <!-- Revolving cards added here -->
+                <div class="section-header" style="margin-top: 40px;">
+                    <h2>Spese Rateizzate (BNPL)</h2>
+                    <button id="btn-add-installment" class="text-btn"><i class="fas fa-plus"></i> Nuova
+                        Rateizzazione</button>
+                </div>
+
+                <!-- Future Transactions Report -->
+                <div class="report-box"
+                    style="background-color: rgba(142, 68, 173, 0.05); padding: 15px; border-radius: var(--radius-md); margin-bottom: 20px; border: 1px solid rgba(142, 68, 173, 0.2);">
+                    <h4 style="margin-bottom: 15px; color: var(--primary-color);"><i class="fas fa-calendar-alt"></i>
+                        Prossime Scadenze</h4>
+                    <div id="installments-report" class="report-list">
+                        <!-- Report items added here -->
+                        <p style="color: var(--text-secondary); font-size: 0.9rem;">Nessuna scadenza imminente.</p>
+                    </div>
+                </div>
+
+                <div id="installments-list" class="investments-grid">
+                    <!-- Installment plans added here -->
                 </div>
             </section>
         </main>
+    </div>
+
+    <!-- Modal for Adding Installment Plan -->
+    <div id="installment-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Nuova Rateizzazione</h3>
+                <button id="close-installment-modal" class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="installment-form">
+                <div class="form-group">
+                    <label for="inst-name">Nome Acquisto</label>
+                    <input type="text" id="inst-name" placeholder="Es. iPhone 15" required>
+                </div>
+                <div class="form-group">
+                    <label for="inst-total">Importo Totale (€)</label>
+                    <input type="number" id="inst-total" placeholder="0.00" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="inst-count">Numero Rate</label>
+                    <div class="radio-group" style="display: flex; gap: 15px; margin-top: 5px;">
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="radio" name="inst-count" value="3" checked> 3 Rate
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="radio" name="inst-count" value="6"> 6 Rate
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="radio" name="inst-count" value="custom"> Altro
+                        </label>
+                    </div>
+                    <input type="number" id="inst-count-custom" placeholder="Numero rate personalizzato" class="hidden"
+                        style="margin-top: 10px;">
+                </div>
+                <div class="form-group">
+                    <label for="inst-date">Data Prima Rata (Oggi)</label>
+                    <input type="date" id="inst-date" required>
+                </div>
+
+                <div class="alert-box"
+                    style="background: rgba(142, 68, 173, 0.1); padding: 10px; border-radius: 8px; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px;">
+                    <i class="fas fa-info-circle"></i> La prima rata verrà addebitata immediatamente se la data coincide
+                    con oggi.
+                </div>
+
+                <button type="submit" class="submit-btn">Crea Piano</button>
+            </form>
+        </div>
     </div>
 
     <!-- Modal for Adding Transaction -->

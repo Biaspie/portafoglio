@@ -204,5 +204,101 @@ window.dbOps = {
     addLoanToDb,
     subscribeToLoans,
     addRevolvingToDb,
-    subscribeToRevolving
+    subscribeToRevolving,
+
+    // Installments
+    addInstallmentPlanToDb: async (plan) => {
+        const userRef = getUserRef();
+        if (!userRef) return null;
+        try {
+            const docRef = await userRef.collection('installmentPlans').add({
+                ...plan,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            return { id: docRef.id, ...plan };
+        } catch (error) {
+            console.error('Error adding installment plan:', error);
+            throw error;
+        }
+    },
+
+    subscribeToInstallmentPlans: (callback) => {
+        const userRef = getUserRef();
+        if (!userRef) return () => { };
+        return userRef.collection('installmentPlans')
+            .onSnapshot((snapshot) => {
+                const plans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                callback(plans);
+            });
+    },
+
+    updateInstallmentPlan: async (id, updates) => {
+        const userRef = getUserRef();
+        if (!userRef) return;
+        try {
+            await userRef.collection('installmentPlans').doc(id).update(updates);
+        } catch (error) {
+            console.error('Error updating installment plan:', error);
+            throw error;
+        }
+    },
+
+    deleteInstallmentPlan: async (id) => {
+        const userRef = getUserRef();
+        if (!userRef) return;
+        try {
+            await userRef.collection('installmentPlans').doc(id).delete();
+        } catch (error) {
+            console.error('Error deleting installment plan:', error);
+            throw error;
+        }
+    },
+
+    // Subscriptions
+    addSubscriptionToDb: async (sub) => {
+        const userRef = getUserRef();
+        if (!userRef) return null;
+        try {
+            const docRef = await userRef.collection('subscriptions').add({
+                ...sub,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            return { id: docRef.id, ...sub };
+        } catch (error) {
+            console.error('Error adding subscription:', error);
+            throw error;
+        }
+    },
+
+    subscribeToSubscriptions: (callback) => {
+        const userRef = getUserRef();
+        if (!userRef) return () => { };
+        return userRef.collection('subscriptions')
+            .onSnapshot((snapshot) => {
+                const subs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                callback(subs);
+            });
+    },
+
+    deleteSubscriptionFromDb: async (id) => {
+        const userRef = getUserRef();
+        if (!userRef) return;
+        try {
+            await userRef.collection('subscriptions').doc(id).delete();
+        } catch (error) {
+            console.error('Error deleting subscription:', error);
+            throw error;
+        }
+    },
+
+    updateSubscription: async (id, updates) => {
+        const userRef = getUserRef();
+        if (!userRef) return;
+        try {
+            await userRef.collection('subscriptions').doc(id).update(updates);
+        } catch (error) {
+            console.error('Error updating subscription:', error);
+            throw error;
+        }
+    }
 };

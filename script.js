@@ -57,6 +57,7 @@ const walletSelectTransaction = document.getElementById('wallet-select-transacti
 
 // Recurring Elements
 const recurringListEl = document.getElementById('recurring-list');
+const subscriptionsListEl = document.getElementById('subscriptions-list');
 
 // Debt Elements
 const loansListEl = document.getElementById('loans-list');
@@ -85,6 +86,8 @@ let investments = [];
 let wallets = [];
 let loans = [];
 let revolvingCards = [];
+let installmentPlans = []; // State for BNPL
+let subscriptions = []; // State for Subscriptions
 let archivedLoans = [];
 let archivedRevolving = [];
 let currentWalletId = localStorage.getItem('currentWalletId') || 'default';
@@ -93,13 +96,16 @@ let currentAnalysisDate = new Date();
 let balanceChart = null;
 let expensePieChart = null;
 let allocationChart = null;
+let userProfile = null; // Store user profile
 let priceUpdateInterval = null;
 
-// Unsubscribe functions
+// DB Subscriptions
 let unsubscribeTransactions = null;
 let unsubscribeInvestments = null;
 let unsubscribeLoans = null;
 let unsubscribeRevolving = null;
+let unsubscribeInstallments = null;
+let unsubscribeSubscriptions = null;
 
 // ... (Crypto Map and Categories remain unchanged) ...
 // Crypto ID Mapping (Common coins)
@@ -319,6 +325,22 @@ async function init() {
                 renderDebts();
             });
 
+            // 3. Installments (BNPL)
+            if (unsubscribeInstallments) unsubscribeInstallments();
+            unsubscribeInstallments = window.dbOps.subscribeToInstallmentPlans((data) => {
+                installmentPlans = data;
+                renderInstallments(); // Render UI
+                checkDueInstallments(); // Automatic payment check
+            });
+
+            // 4. Subscriptions
+            if (unsubscribeSubscriptions) unsubscribeSubscriptions();
+            unsubscribeSubscriptions = window.dbOps.subscribeToSubscriptions((data) => {
+                subscriptions = data;
+                renderSubscriptions();
+                checkDueSubscriptions();
+            });
+
             populateAssetSelect();
 
             // Set default date to today
@@ -421,8 +443,22 @@ async function addTransaction(e) {
     if (isRecurring) {
         const frequency = document.getElementById('frequency').value;
         transaction.frequency = frequency;
-        // Note: Recurring flows logic needs to be adapted for DB
-        // For now we just save the transaction
+
+        // Save to Subscriptions DB
+        const subscription = {
+            name: description,
+            amount: amount,
+            category: category,
+            frequency: frequency,
+            nextDueDate: calculateNextDate(date, frequency),
+            walletId: walletId
+        };
+
+        try {
+            await window.dbOps.addSubscriptionToDb(subscription);
+        } catch (e) {
+            console.error("Error creating subscription", e);
+        }
     }
 
     try {
@@ -549,16 +585,22 @@ function updateChart() {
     // Sort transactions by date ascending for chart
     const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    let balance = 0;
-    const dataPoints = [];
-    const labels = [];
+    // Group by Date to get daily closing balance
+    const dailyBalances = {};
+    let runningBalance = 0;
 
+    // Initialize with 0 for the very first date if needed, or just iterate
     sortedTransactions.forEach(t => {
         const amount = t.type === 'income' ? t.amount : -t.amount;
-        balance += amount;
-        dataPoints.push(balance);
-        labels.push(formatDate(t.date));
+        runningBalance += amount;
+
+        // Save/Overwrite the balance for this date (so we get the last one of the day)
+        const dateStr = formatDate(t.date); // Using existing formatting "DD MMM YYYY"
+        dailyBalances[dateStr] = runningBalance;
     });
+
+    const dataPoints = Object.values(dailyBalances);
+    const labels = Object.keys(dailyBalances);
 
     if (balanceChart) {
         balanceChart.destroy();
@@ -576,7 +618,7 @@ function updateChart() {
                 borderWidth: 2,
                 tension: 0.4,
                 fill: true,
-                pointRadius: 0
+                pointRadius: 3 // Made points slightly visible
             }]
         },
         options: {
@@ -585,6 +627,10 @@ function updateChart() {
             plugins: {
                 legend: {
                     display: false
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
                 }
             },
             scales: {
@@ -593,17 +639,30 @@ function updateChart() {
                         color: '#333333'
                     },
                     ticks: {
-                        color: '#a0a0a0'
+                        color: '#a0a0a0',
+                        callback: function (value) {
+                            return '€ ' + value;
+                        }
                     }
                 },
                 x: {
                     grid: {
-                        display: false
+                        color: '#333333', // Show grid lines for days
+                        display: true     // Enable grid
                     },
                     ticks: {
-                        display: false // Hide dates on x-axis for cleaner look
+                        color: '#a0a0a0',
+                        display: true,     // Show dates
+                        maxTicksLimit: 7,  // Limit labels to avoid crowding
+                        maxRotation: 0,
+                        autoSkip: true
                     }
                 }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
             }
         }
     });
@@ -1164,7 +1223,73 @@ isRecurringInput.addEventListener('change', (e) => {
 function renderRecurring() {
     recurringListEl.innerHTML = '';
 
-    if (recurringFlows.length === 0) {
+    const allItems = [];
+
+    // 1. Existing Recurring Flows
+    recurringFlows.forEach(flow => {
+        allItems.push({
+            type: 'flow',
+            id: flow.id,
+            description: flow.description,
+            amount: flow.amount,
+            date: flow.nextDueDate,
+            category: flow.category,
+            source: flow // reference
+        });
+    });
+
+    // 2. Installment Plans (BNPL)
+    if (installmentPlans) {
+        installmentPlans.filter(p => p.status === 'active').forEach(plan => {
+            const nextInst = plan.installments.find(i => i.status === 'pending');
+            if (nextInst) {
+                allItems.push({
+                    type: 'installment',
+                    id: plan.id,
+                    description: `${plan.name} (Rata ${nextInst.number}/${plan.installmentsCount})`,
+                    amount: nextInst.amount,
+                    date: nextInst.dueDate,
+                    category: 'shopping', // Default category
+                    source: plan
+                });
+            }
+        });
+    }
+
+    // 3. Active Loans (Next Payment)
+    if (loans) {
+        loans.filter(l => !l.settled).forEach(loan => {
+            // Calculate next payment date based on start date and today
+            const start = new Date(loan.startDate);
+            const today = new Date();
+
+            // Find first payment date > today
+            let nextDate = new Date(start);
+            // Simple monthly iteration until future
+            while (nextDate <= today) {
+                nextDate.setMonth(nextDate.getMonth() + 1);
+            }
+
+            // Calculate monthly payment (amortization)
+            const monthlyRate = loan.rate / 100 / 12;
+            const payment = (loan.amount * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -loan.months));
+
+            allItems.push({
+                type: 'loan',
+                id: loan.id,
+                description: `${loan.name} (Rata Mutuo/Prestito)`,
+                amount: payment,
+                date: nextDate.toISOString().split('T')[0],
+                category: 'bills',
+                source: loan
+            });
+        });
+    }
+
+    // Sort by Date
+    allItems.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    if (allItems.length === 0) {
         recurringListEl.innerHTML = `
             <li class="empty-state">
                 <i class="fas fa-sync-alt"></i>
@@ -1174,32 +1299,60 @@ function renderRecurring() {
         return;
     }
 
-    recurringFlows.forEach(flow => {
-        const item = document.createElement('li');
-        item.classList.add('transaction-item');
+    allItems.forEach(item => {
+        const domItem = document.createElement('li');
+        domItem.classList.add('transaction-item');
+        domItem.classList.add('expense'); // All debts are expenses usually
 
-        const category = expenseCategories[flow.category] || incomeCategories[flow.category] || { label: 'Altro', icon: 'fa-circle', color: '#ccc' };
-        const amountClass = flow.type === 'income' ? 'income' : 'expense';
-        const sign = flow.type === 'income' ? '+' : '-';
+        let iconClass = 'fa-circle-notch';
+        let categoryLabel = 'Altro';
 
-        item.innerHTML = `
-            <div class="t-info">
-                <div class="t-icon" style="color: ${category.color}; border-color: ${category.color}33;">
-                    <i class="fas ${category.icon}"></i>
-                </div>
-                <div class="t-details">
-                    <h4>${flow.name || flow.description || category.label} <span class="badge-recurring">${flow.frequency}</span></h4>
-                    <small>Prossimo: ${new Date(flow.nextDueDate).toLocaleDateString('it-IT')}</small>
-                </div>
-            </div>
-            <div class="t-amount ${amountClass}">
-                ${sign}€ ${Math.abs(flow.amount).toFixed(2)}
-                <button class="delete-btn" onclick="deleteRecurringFlow(${flow.id})">
+        if (allCategories[item.category]) {
+            iconClass = allCategories[item.category].icon;
+            categoryLabel = allCategories[item.category].label;
+        }
+
+        // Custom icons for debts
+        if (item.type === 'installment') iconClass = 'fa-credit-card';
+        if (item.type === 'loan') iconClass = 'fa-university';
+
+        const amountClass = 'expense';
+        const sign = '-';
+
+        let actionBtn = '';
+        if (item.type === 'flow') {
+            actionBtn = `
+                <button class="delete-btn" onclick="deleteRecurringFlow(${item.id})">
                     <i class="fas fa-trash"></i>
                 </button>
+            `;
+        } else {
+            // For debts, maybe a link to manage them?
+            actionBtn = `
+                <button class="delete-btn" style="opacity: 0.5; cursor: default;" title="Gestisci nella sezione Debiti">
+                    <i class="fas fa-info-circle"></i>
+                </button>
+            `;
+        }
+
+        domItem.innerHTML = `
+            <div class="t-info">
+                <div class="t-icon">
+                    <i class="fas ${iconClass}"></i>
+                </div>
+                <div class="t-details">
+                    <h4>${item.description}</h4>
+                    <small>Prossimo: ${formatDate(item.date)}</small>
+                </div>
+            </div>
+            <div class="t-actions">
+                <span class="t-amount ${amountClass}">
+                    ${sign}€ ${Math.abs(item.amount).toFixed(2)}
+                </span>
+                ${actionBtn}
             </div>
         `;
-        recurringListEl.appendChild(item);
+        recurringListEl.appendChild(domItem);
     });
 }
 
@@ -1716,5 +1869,114 @@ if (sidebarToggle && sidebar) {
         appWrapper.classList.toggle('sidebar-collapsed');
     });
 }
+
+
+// --- Subscription Functions ---
+
+function calculateNextDate(dateStr, frequency) {
+    let date = new Date(dateStr);
+    if (frequency === 'monthly') {
+        date.setMonth(date.getMonth() + 1);
+    } else if (frequency === 'weekly') {
+        date.setDate(date.getDate() + 7);
+    } else if (frequency === 'yearly') {
+        date.setFullYear(date.getFullYear() + 1);
+    }
+    return date.toISOString().split('T')[0];
+}
+
+function renderSubscriptions() {
+    if (!subscriptionsListEl) return;
+    subscriptionsListEl.innerHTML = '';
+
+    if (subscriptions.length === 0) {
+        subscriptionsListEl.innerHTML = `
+            <li class="empty-state">
+                 <i class="fas fa-play-circle"></i>
+                <p>Nessun abbonamento attivo</p>
+            </li>
+        `;
+        return;
+    }
+
+    subscriptions.forEach(sub => {
+        const item = document.createElement('li');
+        item.classList.add('transaction-item');
+        item.classList.add('expense');
+
+        const categoryData = allCategories[sub.category] || allCategories.other;
+        const iconClass = categoryData.icon;
+
+        item.innerHTML = `
+            <div class="t-info">
+                <div class="t-icon">
+                    <i class="fas ${iconClass}"></i>
+                </div>
+                <div class="t-details">
+                    <h4>${sub.name} <span class="badge-recurring">${getUrlFrequency(sub.frequency)}</span></h4>
+                    <small>Prossimo rinnovo: ${formatDate(sub.nextDueDate)}</small>
+                </div>
+            </div>
+            <div class="t-actions">
+                <span class="t-amount expense">
+                    -€ ${Math.abs(sub.amount).toFixed(2)}
+                </span>
+                <button class="delete-btn" onclick="deleteSubscription('${sub.id}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        subscriptionsListEl.appendChild(item);
+    });
+}
+
+function getUrlFrequency(freq) {
+    if (freq === 'monthly') return 'Mensile';
+    if (freq === 'weekly') return 'Settimanale';
+    if (freq === 'yearly') return 'Annuale';
+    return freq;
+}
+
+async function checkDueSubscriptions() {
+    const today = new Date().toISOString().split('T')[0];
+
+    for (const sub of subscriptions) {
+        if (sub.nextDueDate <= today) {
+            console.log(`Renewing subscription: ${sub.name}`);
+
+            // 1. Create Transaction
+            const transaction = {
+                walletId: sub.walletId || 'default',
+                type: 'expense',
+                amount: sub.amount,
+                category: sub.category,
+                date: today,
+                description: sub.name + ' (Rinnovo)',
+                isRecurring: true,
+                frequency: sub.frequency
+            };
+
+            // 2. Update Next Due Date
+            const nextDate = calculateNextDate(sub.nextDueDate, sub.frequency);
+
+            try {
+                await window.dbOps.addTransactionToDb(transaction);
+                await window.dbOps.updateSubscription(sub.id, { nextDueDate: nextDate });
+            } catch (e) {
+                console.error("Error checking subscription", e);
+            }
+        }
+    }
+}
+
+window.deleteSubscription = async function (id) {
+    if (confirm('Vuoi annullare questo abbonamento?')) {
+        try {
+            await window.dbOps.deleteSubscriptionFromDb(id);
+        } catch (e) {
+            alert('Errore cancellazione: ' + e.message);
+        }
+    }
+};
 
 init();
