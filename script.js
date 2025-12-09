@@ -1487,20 +1487,41 @@ function renderRevolving() {
 }
 
 function updateTotalDebt() {
-    const loanDebt = loans.reduce((acc, loan) => {
-        // Simple remaining calculation based on progress
+    let total = 0;
+
+    // Calculate remaining loan balance
+    loans.forEach(loan => {
         const startDate = new Date(loan.startDate);
         const now = new Date();
         const monthsElapsed = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
-        const remainingMonths = Math.max(0, loan.months - monthsElapsed);
-        // Approximation: Principal remaining
-        const remainingPrincipal = (loan.amount / loan.months) * remainingMonths;
-        return acc + remainingPrincipal;
-    }, 0);
 
-    const cardDebt = revolvingCards.reduce((acc, card) => acc + parseFloat(card.balance), 0);
+        let balance = loan.amount;
+        // Simple amortization calc to get current balance
+        const monthlyRate = loan.rate / 100 / 12;
+        // If rate is 0, handle simpler
+        if (loan.rate === 0) {
+            balance = Math.max(0, loan.amount - (loan.amount / loan.months * monthsElapsed));
+        } else {
+            const payment = (loan.amount * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -loan.months));
+            for (let i = 0; i < monthsElapsed && i < loan.months; i++) {
+                const interest = balance * monthlyRate;
+                const principal = payment - interest;
+                balance -= principal;
+            }
+        }
+        if (balance < 0) balance = 0;
+        total += balance;
+    });
 
-    totalDebtRemainingEl.innerText = `€ ${(loanDebt + cardDebt).toFixed(2)}`;
+    // Add revolving card balances
+    revolvingCards.forEach(card => {
+        total += parseFloat(card.balance);
+    });
+
+    const totalDebtEl = document.querySelector('.debt-amount.large.danger');
+    if (totalDebtEl) {
+        totalDebtEl.textContent = `€ ${total.toFixed(2)}`;
+    }
 }
 
 async function addLoan(e) {
