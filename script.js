@@ -1419,12 +1419,12 @@ function renderLoans() {
                 <span>${Math.round(progress)}% Completato</span>
             </div>
             <div class="debt-actions">
-                <button class="btn-small" onclick="viewAmortization(${loan.id})">Piano</button>
+                <button class="btn-small" onclick="viewAmortization('${loan.id}')">Piano</button>
                 ${isArchived ?
-                `<button class="btn-small" onclick="restoreLoan(${loan.id})">Ripristina</button>` :
-                `<button class="btn-small" onclick="archiveLoan(${loan.id})">Archivia</button>`
+                `<button class="btn-small" onclick="restoreLoan('${loan.id}')">Ripristina</button>` :
+                `<button class="btn-small" onclick="archiveLoan('${loan.id}')">Archivia</button>`
             }
-                <button class="btn-small" onclick="deleteLoan(${loan.id})" style="color: var(--danger-color); border-color: var(--danger-color);">Elimina</button>
+                <button class="btn-small" onclick="deleteLoan('${loan.id}')" style="color: var(--danger-color); border-color: var(--danger-color);">Elimina</button>
             </div>
         `;
         loansListEl.appendChild(card);
@@ -1466,10 +1466,10 @@ function renderRevolving() {
             </div>
             <div class="debt-actions">
                 ${isArchived ?
-                `<button class="btn-small" onclick="restoreRevolving(${card.id})">Ripristina</button>` :
-                `<button class="btn-small" onclick="archiveRevolving(${card.id})">Archivia</button>`
+                `<button class="btn-small" onclick="restoreRevolving('${card.id}')">Ripristina</button>` :
+                `<button class="btn-small" onclick="archiveRevolving('${card.id}')">Archivia</button>`
             }
-                <button class="btn-small" onclick="deleteRevolving(${card.id})" style="color: var(--danger-color); border-color: var(--danger-color);">Elimina</button>
+                <button class="btn-small" onclick="deleteRevolving('${card.id}')" style="color: var(--danger-color); border-color: var(--danger-color);">Elimina</button>
             </div>
         `;
         revolvingListEl.appendChild(item);
