@@ -1481,6 +1481,11 @@ function renderRevolving() {
                 <span>Disponibile: € ${(card.limit - card.balance).toFixed(2)}</span>
                 <span>${Math.round(utilization)}% Utilizzato</span>
             </div>
+            ${card.monthlyPayment ? `
+            <div class="debt-details" style="margin-top: 5px; font-size: 0.85rem; color: var(--text-primary);">
+                <span>Rata: € ${parseFloat(card.monthlyPayment).toFixed(2)}</span>
+                <span>Giorno: ${card.paymentDay || '?'}</span>
+            </div>` : ''}
             <div class="debt-actions">
                 ${isArchived ?
                 `<button class="btn-small" onclick="restoreRevolving('${card.id}')">Ripristina</button>` :
@@ -1609,6 +1614,8 @@ function openEditRevolvingModal(id) {
     document.getElementById('revolving-limit').value = card.limit;
     document.getElementById('revolving-balance').value = card.balance;
     document.getElementById('revolving-rate').value = card.rate || 0;
+    document.getElementById('revolving-monthly-payment').value = card.monthlyPayment || '';
+    document.getElementById('revolving-payment-day').value = card.paymentDay || '';
 
     revolvingForm.dataset.mode = 'edit';
     revolvingForm.dataset.editId = id;
@@ -1636,12 +1643,16 @@ async function addRevolving(e) {
     const limit = parseFloat(document.getElementById('revolving-limit').value);
     const balance = parseFloat(document.getElementById('revolving-balance').value);
     const rate = parseFloat(document.getElementById('revolving-rate').value);
+    const monthlyPayment = parseFloat(document.getElementById('revolving-monthly-payment').value) || 0;
+    const paymentDay = parseInt(document.getElementById('revolving-payment-day').value) || null;
 
     const cardData = {
         name,
         limit,
         balance,
-        rate
+        rate,
+        monthlyPayment,
+        paymentDay
     };
 
     try {
@@ -2278,6 +2289,42 @@ function renderRecurringTimeline() {
             category: 'bills', // Loans usually go here or housing
             id: loan.id,
             original: loan
+        });
+    });
+
+    // E. Revolving Cards (Monthly Payment)
+    revolvingCards.forEach(card => {
+        if (card.status === 'archived' || !card.monthlyPayment || !card.paymentDay) return;
+
+        const today = new Date();
+        // Handle payment day > days in month (e.g. 31st)
+        const currentMonthDays = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+        const pDay = Math.min(card.paymentDay, currentMonthDays);
+
+        let nextDate = new Date(today.getFullYear(), today.getMonth(), pDay);
+
+        // If date passed, move to next month
+        if (nextDate < today) {
+            nextDate.setMonth(nextDate.getMonth() + 1);
+            // Re-check day validity for next month
+            const nextMonthDays = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
+            nextDate.setDate(Math.min(card.paymentDay, nextMonthDays));
+        }
+
+        // Format Date Local
+        const year = nextDate.getFullYear();
+        const month = String(nextDate.getMonth() + 1).padStart(2, '0');
+        const day = String(nextDate.getDate()).padStart(2, '0');
+        const formattedDate = `${year}-${month}-${day}`;
+
+        allItems.push({
+            type: 'revolving',
+            date: formattedDate,
+            description: `Rata Carta: ${card.name}`,
+            amount: card.monthlyPayment,
+            category: 'bills',
+            id: card.id,
+            original: card
         });
     });
 
