@@ -1518,6 +1518,12 @@ function updateTotalDebt() {
         total += parseFloat(card.balance);
     });
 
+    console.log('UpdateTotalDebt Debug:', {
+        loansCount: loans.length,
+        revolvingCount: revolvingCards.length,
+        totalCalculated: total
+    });
+
     const totalDebtEl = document.getElementById('total-debt-remaining');
     if (totalDebtEl) {
         totalDebtEl.textContent = `€ ${total.toFixed(2)}`;
@@ -1881,22 +1887,134 @@ document.getElementById('btn-debts-archive').addEventListener('click', () => {
 
 // Update window click listener for new modals
 // Consolidated Window Click Listener
-window.addEventListener('click', (e) => {
-    // Old Modals
-    if (e.target == modal) closeModal();
-    if (e.target == assetModal) closeAssetModal();
-    if (e.target == walletModal) walletModal.classList.remove('active');
-
-    // New Modals
-    if (e.target == loanModal) loanModal.classList.remove('active');
-    if (e.target == revolvingModal) revolvingModal.classList.remove('active');
-    if (e.target == amortizationModal) amortizationModal.classList.remove('active');
-
-    // Wallet Dropdown
-    if (!walletSelector.contains(e.target) && !walletDropdown.contains(e.target)) {
-        walletDropdown.classList.add('hidden');
-    }
+// Wallet Dropdown
+if (!walletSelector.contains(e.target) && !walletDropdown.contains(e.target)) {
+    walletDropdown.classList.add('hidden');
+}
 });
+
+// Installments Logic (BNPL)
+function renderInstallments() {
+    const listEl = document.getElementById('installments-list');
+    const reportEl = document.getElementById('installments-report');
+    if (!listEl) return;
+
+    listEl.innerHTML = '';
+
+    // Sort by Date
+    installmentPlans.sort((a, b) => new Date(a.nextDueDate) - new Date(b.nextDueDate));
+
+    if (installmentPlans.length === 0) {
+        listEl.innerHTML = `
+            <div style="text-align: center; color: var(--text-secondary); width: 100%; grid-column: 1 / -1; padding: 20px;">
+                <p>Nessuna rateizzazione attiva</p>
+            </div>
+        `;
+    } else {
+        installmentPlans.forEach(plan => {
+            const card = document.createElement('div');
+            card.className = 'debt-card';
+            // Logic to show progress
+            const progress = (plan.paidInstallments / plan.installmentsCount) * 100;
+
+            card.innerHTML = `
+                <div class="debt-header">
+                    <div>
+                        <div class="debt-title">${plan.name}</div>
+                        <div class="debt-subtitle">${plan.paidInstallments}/${plan.installmentsCount} Rate</div>
+                    </div>
+                    <div class="debt-amount">€ ${parseFloat(plan.totalAmount).toFixed(2)}</div>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar" style="width: ${progress}%"></div>
+                </div>
+                <div class="debt-details">
+                    <span>Prossima: ${new Date(plan.nextDueDate).toLocaleDateString('it-IT')}</span>
+                    <span>€ ${parseFloat(plan.installmentAmount).toFixed(2)}</span>
+                </div>
+                 <div class="debt-actions">
+                    <button class="btn-small" onclick="deleteInstallmentPlan('${plan.id}')" style="color: var(--danger-color); border-color: var(--danger-color);">Elimina</button>
+                </div>
+             `;
+            listEl.appendChild(card);
+        });
+    }
+
+    // Update Report
+    if (reportEl) {
+        reportEl.innerHTML = '';
+        if (installmentPlans.length === 0) {
+            reportEl.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.9rem;">Nessuna scadenza imminente.</p>';
+        } else {
+            installmentPlans.slice(0, 3).forEach(plan => {
+                const item = document.createElement('div');
+                item.style.display = 'flex';
+                item.style.justifyContent = 'space-between';
+                item.style.marginBottom = '8px';
+                item.style.fontSize = '0.9rem';
+                item.innerHTML = `
+                    <span>${plan.name} (${plan.paidInstallments + 1}/${plan.installmentsCount})</span>
+                    <span style="font-weight: 500;">€ ${parseFloat(plan.installmentAmount).toFixed(2)} - ${new Date(plan.nextDueDate).toLocaleDateString('it-IT')}</span>
+                `;
+                reportEl.appendChild(item);
+            });
+        }
+    }
+}
+
+function checkDueInstallments() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    installmentPlans.forEach(async plan => {
+        const nextDate = new Date(plan.nextDueDate);
+        nextDate.setHours(0, 0, 0, 0);
+
+        if (nextDate <= today && plan.paidInstallments < plan.installmentsCount) {
+            // Create Transaction
+            const transaction = {
+                walletId: currentWalletId,
+                type: 'expense',
+                amount: plan.installmentAmount,
+                category: 'shopping', // Default or specific
+                date: plan.nextDueDate,
+                description: `Rata ${plan.paidInstallments + 1}/${plan.installmentsCount}: ${plan.name}`,
+                isRecurring: false
+            };
+
+            try {
+                await window.dbOps.addTransactionToDb(transaction);
+
+                // Update Plan
+                const updates = {
+                    paidInstallments: plan.paidInstallments + 1
+                };
+
+                // Calc next date
+                const newDate = new Date(plan.nextDueDate);
+                newDate.setMonth(newDate.getMonth() + 1); // Assume monthly for now
+                updates.nextDueDate = newDate.toISOString().split('T')[0];
+
+                if (updates.paidInstallments >= plan.installmentsCount) {
+                    await window.dbOps.deleteInstallmentPlan(plan.id);
+                } else {
+                    await window.dbOps.updateInstallmentPlan(plan.id, updates);
+                }
+
+                console.log('Processed installment for:', plan.name);
+
+            } catch (err) {
+                console.error('Error processing installment:', err);
+            }
+        }
+    });
+}
+
+window.deleteInstallmentPlan = async (id) => {
+    if (confirm('Eliminare questo piano rateale?')) {
+        await window.dbOps.deleteInstallmentPlan(id);
+    }
+};
 
 // Expose new functions
 // Expose new functions
