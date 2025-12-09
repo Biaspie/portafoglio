@@ -2072,44 +2072,156 @@ function renderSubscriptions() {
     if (!subscriptionsListEl) return;
     subscriptionsListEl.innerHTML = '';
 
-    if (subscriptions.length === 0) {
-        subscriptionsListEl.innerHTML = `
+    recurringListEl.innerHTML = '';
+
+    // 1. Gather all recurring items
+    let allItems = [];
+
+    // A. Manual Recurring Flows
+    recurringFlows.forEach(flow => {
+        allItems.push({
+            type: 'flow',
+            date: flow.nextDueDate,
+            description: flow.description,
+            amount: flow.amount,
+            category: flow.category,
+            id: flow.id,
+            original: flow
+        });
+    });
+
+    // B. Active Subscriptions
+    subscriptions.forEach(sub => {
+        allItems.push({
+            type: 'subscription',
+            date: sub.nextDueDate,
+            description: `${sub.name} (Abbonamento)`,
+            amount: sub.amount,
+            category: sub.category,
+            id: sub.id,
+            original: sub
+        });
+    });
+
+    // C. Active Installment Plans
+    installmentPlans.forEach(plan => {
+        allItems.push({
+            type: 'installment',
+            date: plan.nextDueDate,
+            description: `Rata: ${plan.name} (${plan.paidInstallments + 1}/${plan.installmentsCount})`,
+            amount: plan.installmentAmount,
+            category: 'shopping', // Default for installments
+            id: plan.id,
+            original: plan
+        });
+    });
+
+    // D. Active Loans (Next Monthly Payment)
+    loans.forEach(loan => {
+        if (loan.status === 'archived') return;
+
+        // Calculate next date: set strictly to next month relative to start date or just current day of month
+        // Simplifying assumption: Loan payment is due on the same day-of-month as startDate
+        const today = new Date();
+        const start = new Date(loan.startDate);
+        let nextDate = new Date(today.getFullYear(), today.getMonth(), start.getDate());
+
+        if (nextDate < today) {
+            nextDate.setMonth(nextDate.getMonth() + 1);
+        }
+
+        // Calculate monthly payment (amortization approximation)
+        // PMT = [P * r * (1+r)^n] / [(1+r)^n - 1]
+        // But user inputs simple rate and amount. Let's use simple approximation or just Amount/Months if rate is 0?
+        // Let's assume standard PMT formula if rate > 0
+        let monthlyPayment = 0;
+        if (loan.rate === 0) {
+            monthlyPayment = loan.amount / loan.months;
+        } else {
+            const r = (loan.rate / 100) / 12;
+            const n = loan.months;
+            monthlyPayment = (loan.amount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+        }
+
+        allItems.push({
+            type: 'loan',
+            date: nextDate.toISOString().split('T')[0],
+            description: `Rata Prestito: ${loan.name}`,
+            amount: monthlyPayment,
+            category: 'bills', // Loans usually go here or housing
+            id: loan.id,
+            original: loan
+        });
+    });
+
+    // 2. Sort by Date
+    allItems.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    if (allItems.length === 0) {
+        recurringListEl.innerHTML = `
             <li class="empty-state">
-                 <i class="fas fa-play-circle"></i>
-                <p>Nessun abbonamento attivo</p>
+                <i class="fas fa-sync-alt"></i>
+                <p>Nessuna spesa ricorrente attiva</p>
             </li>
         `;
         return;
     }
 
-    subscriptions.forEach(sub => {
-        const item = document.createElement('li');
-        item.classList.add('transaction-item');
-        item.classList.add('expense');
+    allItems.forEach(item => {
+        const domItem = document.createElement('li');
+        domItem.classList.add('transaction-item');
+        domItem.classList.add('expense'); // All debts are expenses usually
 
-        const categoryData = allCategories[sub.category] || allCategories.other;
-        const iconClass = categoryData.icon;
+        let iconClass = 'fa-circle-notch';
+        let categoryLabel = 'Altro';
 
-        item.innerHTML = `
+        if (allCategories[item.category]) {
+            iconClass = allCategories[item.category].icon;
+            categoryLabel = allCategories[item.category].label;
+        }
+
+        // Custom icons for debts
+        if (item.type === 'installment' || item.type === 'loan') iconClass = 'fa-university';
+        if (item.type === 'subscription') iconClass = 'fa-play-circle';
+
+        const amountClass = 'expense';
+        const sign = '-';
+
+        let actionBtn = '';
+        if (item.type === 'flow') {
+            actionBtn = `
+                <button class="delete-btn" onclick="deleteRecurringFlow('${item.id}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+        } else {
+            // For debts, maybe a link to manage them?
+            // Use a info icon or similar that isn't a delete button
+            actionBtn = `
+                <div class="delete-btn" style="opacity: 0.5; cursor: default; border: none;" title="Automatico">
+                    <i class="fas fa-robot"></i>
+                </div>
+            `;
+        }
+
+        domItem.innerHTML = `
             <div class="t-info">
                 <div class="t-icon">
                     <i class="fas ${iconClass}"></i>
                 </div>
                 <div class="t-details">
-                    <h4>${sub.name} <span class="badge-recurring">${getUrlFrequency(sub.frequency)}</span></h4>
-                    <small>Prossimo rinnovo: ${formatDate(sub.nextDueDate)}</small>
+                    <h4>${item.description}</h4>
+                    <small>Prossimo: ${formatDate(item.date)}</small>
                 </div>
             </div>
             <div class="t-actions">
-                <span class="t-amount expense">
-                    -€ ${Math.abs(sub.amount).toFixed(2)}
+                <span class="t-amount ${amountClass}">
+                    ${sign}€ ${Math.abs(item.amount).toFixed(2)}
                 </span>
-                <button class="delete-btn" onclick="deleteSubscription('${sub.id}')">
-                    <i class="fas fa-trash"></i>
-                </button>
+                ${actionBtn}
             </div>
         `;
-        subscriptionsListEl.appendChild(item);
+        recurringListEl.appendChild(domItem);
     });
 }
 
