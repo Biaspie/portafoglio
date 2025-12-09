@@ -916,6 +916,9 @@ function addAsset(e) {
     const quantity = +document.getElementById('asset-quantity').value;
     const invested = +document.getElementById('asset-invested').value;
     const current = +document.getElementById('asset-current').value;
+    // Use user-provided date or fallback to today
+    const dateInput = document.getElementById('asset-date').value;
+    const transactionDate = dateInput || new Date().toISOString().split('T')[0];
 
     // Check if asset already exists
     const existingAssetIndex = investments.findIndex(a => a.name === name && a.type === (selectedOption.dataset.type || 'custom'));
@@ -928,7 +931,7 @@ function addAsset(e) {
             // Initialize history if missing
             if (!existing.history) {
                 existing.history = [{
-                    date: new Date().toISOString().split('T')[0],
+                    date: transactionDate,
                     type: 'buy',
                     quantity: existing.quantity,
                     invested: existing.invested,
@@ -938,7 +941,7 @@ function addAsset(e) {
 
             // Add new history entry
             existing.history.push({
-                date: new Date().toISOString().split('T')[0],
+                date: transactionDate,
                 type: 'buy',
                 quantity: quantity,
                 invested: invested,
@@ -965,7 +968,7 @@ function addAsset(e) {
             apiId: apiId,
             type: selectedOption.dataset.type || 'custom',
             history: [{
-                date: new Date().toISOString().split('T')[0],
+                date: transactionDate,
                 type: 'buy',
                 quantity: quantity,
                 invested: invested,
@@ -1144,6 +1147,29 @@ async function fetchCryptoPrices() {
 
     } catch (error) {
         console.error('Error fetching crypto prices:', error);
+    }
+}
+
+async function fetchTransactionPrice(apiId, dateStr) {
+    // dateStr is yyyy-mm-dd
+    // CoinGecko needs dd-mm-yyyy
+    const [year, month, day] = dateStr.split('-');
+    const formattedDate = `${day}-${month}-${year}`;
+
+    const url = `https://api.coingecko.com/api/v3/coins/${apiId}/history?date=${formattedDate}&localization=false`;
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('API Rate Limit or Error');
+        const data = await response.json();
+
+        if (data.market_data && data.market_data.current_price && data.market_data.current_price.eur) {
+            return data.market_data.current_price.eur;
+        }
+        return null;
+    } catch (e) {
+        console.error('Error fetching historical price:', e);
+        return null;
     }
 }
 
@@ -1969,6 +1995,7 @@ revolvingForm.addEventListener('submit', addRevolving);
 btnAddAsset.addEventListener('click', () => {
     // Reset form
     assetForm.reset();
+    document.getElementById('asset-date').valueAsDate = new Date();
     assetModal.classList.add('active');
 });
 closeAssetModalBtn.addEventListener('click', () => closeAssetModal());
@@ -1982,8 +2009,43 @@ document.getElementById('asset-select').addEventListener('change', (e) => {
     } else {
         customInput.classList.add('hidden');
         customInput.required = false;
+        triggerAutoPrice();
     }
 });
+
+document.getElementById('asset-date').addEventListener('change', triggerAutoPrice);
+document.getElementById('asset-quantity').addEventListener('change', triggerAutoPrice);
+
+async function triggerAutoPrice() {
+    const select = document.getElementById('asset-select');
+    const dateInput = document.getElementById('asset-date');
+    const qtyInput = document.getElementById('asset-quantity');
+    const investedInput = document.getElementById('asset-invested');
+
+    if (select.selectedIndex === -1) return;
+    const option = select.options[select.selectedIndex];
+    const apiId = option.dataset.apiId;
+    const type = option.dataset.type;
+    const date = dateInput.value;
+    const qty = parseFloat(qtyInput.value);
+
+    // Only proceed if we have a crypto with API ID, a date, and a quantity
+    if (type === 'crypto' && apiId && date && qty > 0) {
+        // Show loading state
+        investedInput.style.opacity = '0.5';
+
+        const price = await fetchTransactionPrice(apiId, date);
+
+        investedInput.style.opacity = '1';
+
+        if (price) {
+            const total = price * qty;
+            investedInput.value = total.toFixed(2);
+            // Optional: visual feedback
+            console.log(`Historical Price for ${apiId} on ${date}: €${price}`);
+        }
+    }
+}
 
 
 
