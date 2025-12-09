@@ -606,7 +606,24 @@ function updateValues() {
 async function removeTransaction(id) {
     if (confirm('Sei sicuro di voler eliminare questa transazione?')) {
         try {
+            // Find transaction to check if it affects a card
+            const transaction = transactions.find(t => t.id == id); // Loose equality for number/string id mismatch safety
+
+            if (transaction && transaction.sourceType === 'card') {
+                const card = revolvingCards.find(c => c.id === transaction.walletId);
+                if (card) {
+                    // Revert balance change: 
+                    // If it was Expense (increased debt), we subtract amount.
+                    // If it was Income (decreased debt), we add amount.
+                    const reversalAmount = transaction.type === 'expense' ? -transaction.amount : transaction.amount;
+                    const newBalance = parseFloat(card.balance) + reversalAmount;
+
+                    await window.dbOps.updateRevolving(transaction.walletId, { balance: newBalance });
+                }
+            }
+
             await window.dbOps.deleteTransactionFromDb(id);
+            // UI updates via subscription automatically
         } catch (error) {
             alert('Errore eliminazione: ' + error.message);
         }
