@@ -1887,10 +1887,12 @@ document.getElementById('btn-debts-archive').addEventListener('click', () => {
 
 // Update window click listener for new modals
 // Consolidated Window Click Listener
-// Wallet Dropdown
-if (!walletSelector.contains(e.target) && !walletDropdown.contains(e.target)) {
-    walletDropdown.classList.add('hidden');
-}
+// Consolidated Window Click Listener
+window.addEventListener('click', (e) => {
+    // Wallet Dropdown
+    if (!walletSelector.contains(e.target) && !walletDropdown.contains(e.target)) {
+        walletDropdown.classList.add('hidden');
+    }
 });
 
 // Installments Logic (BNPL)
