@@ -543,8 +543,12 @@ function addTransactionDOM(transaction) {
     const iconClass = categoryData.icon;
 
     // Card Indicator
-    const isCard = transaction.sourceType === 'card';
-    const sourceIcon = isCard ? '<i class="fas fa-credit-card" title="Pagato con Carta di Credito" style="margin-right: 5px; color: var(--warning-color);"></i>' : '';
+    let sourceInfo = formatDate(transaction.date);
+    if (transaction.sourceType === 'card') {
+        const card = revolvingCards.find(c => c.id === transaction.walletId);
+        const cardName = card ? card.name : 'Carta';
+        sourceInfo = `<i class="fas fa-credit-card" title="Pagato con ${cardName}" style="margin-right: 5px; color: var(--warning-color);"></i> ${cardName} &bull; ${formatDate(transaction.date)}`;
+    }
 
     item.innerHTML = `
         <div class="t-info">
@@ -553,7 +557,7 @@ function addTransactionDOM(transaction) {
             </div>
             <div class="t-details">
                 <h4>${transaction.description}</h4>
-                <small>${sourceIcon} ${formatDate(transaction.date)}</small>
+                <small>${sourceInfo}</small>
             </div>
         </div>
         <div class="t-actions">
