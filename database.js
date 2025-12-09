@@ -215,6 +215,18 @@ const subscribeToRevolving = (callback) => {
         });
 };
 
+// Update Revolving Card
+const updateRevolving = async (id, updates) => {
+    const userRef = getUserRef();
+    if (!userRef) return;
+    try {
+        await userRef.collection('revolvingCards').doc(id).update(updates);
+    } catch (error) {
+        console.error('Error updating revolving card:', error);
+        throw error;
+    }
+};
+
 // Export functions
 window.dbOps = {
     getWallets,
@@ -231,6 +243,7 @@ window.dbOps = {
     updateLoan,
     addRevolvingToDb,
     subscribeToRevolving,
+    updateRevolving,
 
     // Installments
     addInstallmentPlanToDb: async (plan) => {

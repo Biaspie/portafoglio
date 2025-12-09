@@ -1484,7 +1484,8 @@ function renderRevolving() {
             <div class="debt-actions">
                 ${isArchived ?
                 `<button class="btn-small" onclick="restoreRevolving('${card.id}')">Ripristina</button>` :
-                `<button class="btn-small" onclick="archiveRevolving('${card.id}')">Archivia</button>`
+                `<button class="btn-small" onclick="openEditRevolvingModal('${card.id}')">Modifica</button>
+                 <button class="btn-small" onclick="archiveRevolving('${card.id}')">Archivia</button>`
             }
                 <button class="btn-small" onclick="deleteRevolving('${card.id}')" style="color: var(--danger-color); border-color: var(--danger-color);">Elimina</button>
             </div>
@@ -1599,6 +1600,36 @@ async function addLoan(e) {
     }
 }
 
+// Open Modal for Edit
+function openEditRevolvingModal(id) {
+    const card = revolvingCards.find(c => c.id === id);
+    if (!card) return;
+
+    document.getElementById('revolving-name').value = card.name;
+    document.getElementById('revolving-limit').value = card.limit;
+    document.getElementById('revolving-balance').value = card.balance;
+    document.getElementById('revolving-rate').value = card.rate || 0;
+
+    revolvingForm.dataset.mode = 'edit';
+    revolvingForm.dataset.editId = id;
+
+    // Change Title/Button
+    revolvingModal.querySelector('.modal-header h3').textContent = 'Modifica Carta';
+    revolvingModal.querySelector('.submit-btn').textContent = 'Salva Modifiche';
+
+    revolvingModal.classList.add('active');
+}
+
+// Override function to open modal in add mode
+document.getElementById('btn-add-revolving').addEventListener('click', () => {
+    revolvingForm.reset();
+    revolvingForm.dataset.mode = 'add';
+    revolvingForm.removeAttribute('data-edit-id');
+    revolvingModal.querySelector('.modal-header h3').textContent = 'Nuova Carta Revolving';
+    revolvingModal.querySelector('.submit-btn').textContent = 'Aggiungi Carta';
+    revolvingModal.classList.add('active');
+});
+
 async function addRevolving(e) {
     e.preventDefault();
     const name = document.getElementById('revolving-name').value;
@@ -1606,7 +1637,7 @@ async function addRevolving(e) {
     const balance = parseFloat(document.getElementById('revolving-balance').value);
     const rate = parseFloat(document.getElementById('revolving-rate').value);
 
-    const card = {
+    const cardData = {
         name,
         limit,
         balance,
@@ -1614,7 +1645,11 @@ async function addRevolving(e) {
     };
 
     try {
-        await window.dbOps.addRevolvingToDb(card);
+        if (revolvingForm.dataset.mode === 'edit' && revolvingForm.dataset.editId) {
+            await window.dbOps.updateRevolving(revolvingForm.dataset.editId, cardData);
+        } else {
+            await window.dbOps.addRevolvingToDb(cardData);
+        }
         revolvingModal.classList.remove('active');
         revolvingForm.reset();
     } catch (error) {
