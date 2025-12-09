@@ -1644,6 +1644,7 @@ function viewAmortization(id) {
     const payment = (loan.amount * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -loan.months));
 
     let balance = loan.amount;
+    const startDate = new Date(loan.startDate);
 
     for (let i = 1; i <= loan.months; i++) {
         const interest = balance * monthlyRate;
