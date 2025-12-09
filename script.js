@@ -363,7 +363,7 @@ function updateUI() {
 
     // Update charts if visible
     if (!dashboardView.classList.contains('hidden')) {
-        updateCharts();
+        updateChart();
     }
 }
 
@@ -1322,7 +1322,7 @@ function renderRecurring() {
         let actionBtn = '';
         if (item.type === 'flow') {
             actionBtn = `
-                <button class="delete-btn" onclick="deleteRecurringFlow(${item.id})">
+                <button class="delete-btn" onclick="deleteRecurringFlow('${item.id}')">
                     <i class="fas fa-trash"></i>
                 </button>
             `;
