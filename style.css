@@ -1630,3 +1630,33 @@ input[type="radio"]:checked+.type-label.income {
     margin-top: auto;
     z-index: 10;
 }
+
+/* Debt Card Fixes */
+.debt-card {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 15px;
+    border: 1px solid var(--border-color);
+}
+
+.debt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.debt-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.debt-actions button {
+    flex: 1 1 auto;
+    white-space: nowrap;
+    min-width: 80px;
+    /* Ensure buttons don't shrink too much */
+}
