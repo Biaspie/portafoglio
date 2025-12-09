@@ -1568,45 +1568,62 @@ function renderRevolving() {
 
 function updateTotalDebt() {
     let total = 0;
+    let totalMonthly = 0;
 
-    // Calculate remaining loan balance
+    // Calculate remaining loan balance and monthly payments
     loans.forEach(loan => {
+        if (loan.status === 'archived') return;
+
         const startDate = new Date(loan.startDate);
         const now = new Date();
         const monthsElapsed = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
 
         let balance = loan.amount;
+        let payment = 0;
+
         // Simple amortization calc to get current balance
         const monthlyRate = loan.rate / 100 / 12;
-        // If rate is 0, handle simpler
+
         if (loan.rate === 0) {
-            balance = Math.max(0, loan.amount - (loan.amount / loan.months * monthsElapsed));
+            payment = loan.amount / loan.months;
+            balance = Math.max(0, loan.amount - (payment * monthsElapsed));
         } else {
-            const payment = (loan.amount * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -loan.months));
+            payment = (loan.amount * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -loan.months));
+
+            let tempBalance = loan.amount;
             for (let i = 0; i < monthsElapsed && i < loan.months; i++) {
-                const interest = balance * monthlyRate;
+                const interest = tempBalance * monthlyRate;
                 const principal = payment - interest;
-                balance -= principal;
+                tempBalance -= principal;
             }
+            balance = tempBalance;
         }
+
         if (balance < 0) balance = 0;
-        total += balance;
+
+        // Count if active
+        if (balance > 0.1) {
+            total += balance;
+            totalMonthly += payment;
+        }
     });
 
     // Add revolving card balances
     revolvingCards.forEach(card => {
+        if (card.status === 'archived') return;
         total += parseFloat(card.balance);
-    });
-
-    console.log('UpdateTotalDebt Debug:', {
-        loansCount: loans.length,
-        revolvingCount: revolvingCards.length,
-        totalCalculated: total
+        totalMonthly += (parseFloat(card.monthlyPayment) || 0);
     });
 
     const totalDebtEl = document.getElementById('total-debt-remaining');
     if (totalDebtEl) {
         totalDebtEl.textContent = `€ ${total.toFixed(2)}`;
+    }
+
+    // Update Monthly Total
+    const totalMonthlyEl = document.getElementById('total-monthly-debt');
+    if (totalMonthlyEl) {
+        totalMonthlyEl.innerText = `€ ${totalMonthly.toFixed(2)}`;
     }
 }
 
