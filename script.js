@@ -2108,6 +2108,10 @@ function calculateNextDate(dateStr, frequency) {
 
 function renderSubscriptions() {
     if (!subscriptionsListEl) return;
+
+    // Clear list first to prevent duplicates/stacking with empty state
+    subscriptionsListEl.innerHTML = '';
+
     // 1. Render Management List (Abbonamenti Attivi)
     if (subscriptions.length === 0) {
         subscriptionsListEl.innerHTML = `
