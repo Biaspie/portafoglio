@@ -2181,9 +2181,15 @@ function renderSubscriptions() {
             monthlyPayment = (loan.amount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
         }
 
+        // Format Date Local
+        const year = nextDate.getFullYear();
+        const month = String(nextDate.getMonth() + 1).padStart(2, '0');
+        const day = String(nextDate.getDate()).padStart(2, '0');
+        const formattedDate = `${year}-${month}-${day}`;
+
         allItems.push({
             type: 'loan',
-            date: nextDate.toISOString().split('T')[0],
+            date: formattedDate,
             description: `Rata Prestito: ${loan.name}`,
             amount: monthlyPayment,
             category: 'bills', // Loans usually go here or housing
