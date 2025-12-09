@@ -838,13 +838,13 @@ const assetList = {
     stocks: {
         label: 'Azioni (Prezzo Manuale)',
         items: [
-            { name: 'Apple', apiId: null, type: 'stock' },
-            { name: 'Microsoft', apiId: null, type: 'stock' },
-            { name: 'Google', apiId: null, type: 'stock' },
-            { name: 'Amazon', apiId: null, type: 'stock' },
-            { name: 'Tesla', apiId: null, type: 'stock' },
-            { name: 'Meta', apiId: null, type: 'stock' },
-            { name: 'NVIDIA', apiId: null, type: 'stock' }
+            { name: 'Apple', apiId: 'AAPL', type: 'stock' },
+            { name: 'Microsoft', apiId: 'MSFT', type: 'stock' },
+            { name: 'Google', apiId: 'GOOGL', type: 'stock' },
+            { name: 'Amazon', apiId: 'AMZN', type: 'stock' },
+            { name: 'Tesla', apiId: 'TSLA', type: 'stock' },
+            { name: 'Meta', apiId: 'META', type: 'stock' },
+            { name: 'NVIDIA', apiId: 'NVDA', type: 'stock' }
         ]
     },
     etf: {
@@ -1150,27 +1150,55 @@ async function fetchCryptoPrices() {
     }
 }
 
-async function fetchTransactionPrice(apiId, dateStr) {
-    // dateStr is yyyy-mm-dd
-    // CoinGecko needs dd-mm-yyyy
-    const [year, month, day] = dateStr.split('-');
-    const formattedDate = `${day}-${month}-${year}`;
+async function fetchTransactionPrice(apiId, dateStr, type = 'crypto') {
+    if (type === 'crypto') {
+        // dateStr is yyyy-mm-dd
+        // CoinGecko needs dd-mm-yyyy
+        const [year, month, day] = dateStr.split('-');
+        const formattedDate = `${day}-${month}-${year}`;
 
-    const url = `https://api.coingecko.com/api/v3/coins/${apiId}/history?date=${formattedDate}&localization=false`;
+        const url = `https://api.coingecko.com/api/v3/coins/${apiId}/history?date=${formattedDate}&localization=false`;
 
-    try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('API Rate Limit or Error');
-        const data = await response.json();
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('API Rate Limit or Error');
+            const data = await response.json();
 
-        if (data.market_data && data.market_data.current_price && data.market_data.current_price.eur) {
-            return data.market_data.current_price.eur;
+            if (data.market_data && data.market_data.current_price && data.market_data.current_price.eur) {
+                return data.market_data.current_price.eur;
+            }
+            return null;
+        } catch (e) {
+            console.error('Error fetching historical crypto price:', e);
+            return null;
         }
-        return null;
-    } catch (e) {
-        console.error('Error fetching historical price:', e);
-        return null;
+    } else if (type === 'stock' || type === 'etf') {
+        if (!FINNHUB_API_KEY || FINNHUB_API_KEY === 'YOUR_API_KEY_HERE') {
+            console.warn('Finnhub API Key missing for stock history');
+            return null;
+        }
+
+        // Finnhub Candle API
+        const timestamp = Math.floor(new Date(dateStr).getTime() / 1000);
+        const toTimestamp = timestamp + 86400; // Look at the full day
+
+        const url = `https://finnhub.io/api/v1/stock/candle?symbol=${apiId}&resolution=D&from=${timestamp}&to=${toTimestamp}&token=${FINNHUB_API_KEY}`;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Finnhub API Error');
+            const data = await response.json();
+
+            if (data.c && data.c.length > 0) {
+                return data.c[0]; // Return close price of that day
+            }
+            return null;
+        } catch (e) {
+            console.error('Error fetching historical stock price:', e);
+            return null;
+        }
     }
+    return null;
 }
 
 async function fetchETFPrices() {
@@ -2149,12 +2177,12 @@ async function triggerAutoPrice() {
     const date = dateInput.value;
     const qty = parseFloat(qtyInput.value);
 
-    // Only proceed if we have a crypto with API ID, a date, and a quantity
-    if (type === 'crypto' && apiId && date && qty > 0) {
+    // Only proceed if we have a valid asset (crypto/stock/etf) with API ID, a date, and a quantity
+    if ((type === 'crypto' || type === 'stock' || type === 'etf') && apiId && date && qty > 0) {
         // Show loading state
         investedInput.style.opacity = '0.5';
 
-        const price = await fetchTransactionPrice(apiId, date);
+        const price = await fetchTransactionPrice(apiId, date, type);
 
         investedInput.style.opacity = '1';
 
@@ -2162,7 +2190,7 @@ async function triggerAutoPrice() {
             const total = price * qty;
             investedInput.value = total.toFixed(2);
             // Optional: visual feedback
-            console.log(`Historical Price for ${apiId} on ${date}: €${price}`);
+            console.log(`Historical Price for ${apiId} (${type}) on ${date}: €${price}`);
         }
     }
 }
