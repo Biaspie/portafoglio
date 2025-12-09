@@ -162,6 +162,18 @@ const subscribeToLoans = (callback) => {
         });
 };
 
+// Delete Loan
+const deleteLoanFromDb = async (id) => {
+    const userRef = getUserRef();
+    if (!userRef) return;
+    try {
+        await userRef.collection('loans').doc(id).delete();
+    } catch (error) {
+        console.error('Error deleting loan:', error);
+        throw error;
+    }
+};
+
 // Add revolving card
 const addRevolvingToDb = async (card) => {
     const userRef = getUserRef();
