@@ -569,10 +569,61 @@
                 <button id="close-asset-details-modal" class="close-btn"><i class="fas fa-times"></i></button>
             </div>
             <div id="asset-details-content">
-                <!-- Details populated by JS -->
+                <div class="asset-details-grid"
+                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                    <div>
+                        <span class="detail-label">Nome Asset</span>
+                        <div class="detail-value" id="detail-asset-name" style="font-weight: bold;">-</div>
+                    </div>
+                    <div>
+                        <span class="detail-label">Quantità Totale</span>
+                        <div class="detail-value" id="detail-quantity">-</div>
+                    </div>
+                    <div>
+                        <span class="detail-label">Investito Totale</span>
+                        <div class="detail-value" id="detail-invested">-</div>
+                    </div>
+                    <div>
+                        <span class="detail-label">Valore Attuale</span>
+                        <div class="detail-value" id="detail-current">-</div>
+                    </div>
+                    <div style="grid-column: 1 / -1;">
+                        <span class="detail-label">P/L Totale</span>
+                        <div class="detail-value" id="detail-pl">-</div>
+                    </div>
+                </div>
             </div>
-            <div class="section-header" style="margin-top: 20px;">
+
+            <div class="section-header"
+                style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
                 <h4>Storico Transazioni</h4>
+                <button id="btn-show-add-history" class="btn-small"
+                    style="background: var(--accent-color); color: white; border: none;">
+                    <i class="fas fa-plus"></i> Nuova Op.
+                </button>
+            </div>
+
+            <div id="add-asset-history-form-container" class="hidden"
+                style="background: var(--bg-secondary); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
+                <h5 style="margin-bottom: 10px;">Aggiungi Movimento</h5>
+                <form id="add-asset-history-form">
+                    <div class="form-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <select id="hist-type"
+                            style="padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); flex: 1;">
+                            <option value="buy">Acquisto</option>
+                            <option value="sell">Vendita</option>
+                        </select>
+                        <input type="date" id="hist-date" required
+                            style="padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); flex: 1;">
+                    </div>
+                    <div class="form-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <input type="number" id="hist-quantity" placeholder="Quantità" step="any" required
+                            style="padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); flex: 1; width: 100%;">
+                        <input type="number" id="hist-price" placeholder="Prezzo Totale €" step="0.01" required
+                            style="padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); flex: 1; width: 100%;">
+                    </div>
+                    <button type="submit" class="submit-btn" style="width: 100%;">Salva Movimento</button>
+                </form>
             </div>
             <div style="max-height: 300px; overflow-y: auto;">
                 <table class="amortization-table"
@@ -634,7 +685,7 @@
     <!-- Database Operations -->
     <script src="database.js?v=1.8.2"></script>
 
-    <script src="script.js?v=1.9.8"></script>
+    <script src="script.js?v=1.9.9"></script>
 </body>
 
 </html>

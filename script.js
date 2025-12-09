@@ -1991,20 +1991,38 @@ closeAmortizationModalBtn.addEventListener('click', () => amortizationModal.clas
 closeAssetDetailsModalBtn.addEventListener('click', () => assetDetailsModal.classList.remove('active'));
 
 // Asset Details Function
+// Asset Details Function
+let currentAssetId = null;
+
 window.showAssetDetails = function (id) {
+    currentAssetId = id;
     const asset = investments.find(a => a.id === id);
     if (!asset) return;
 
-    document.getElementById('detail-asset-name').textContent = asset.name;
-    document.getElementById('detail-quantity').textContent = asset.quantity;
-    document.getElementById('detail-invested').textContent = `€ ${asset.invested.toFixed(2)}`;
-    document.getElementById('detail-current').textContent = `€ ${asset.current.toFixed(2)}`;
+    // Reset and Hide Form
+    const formContainer = document.getElementById('add-asset-history-form-container');
+    if (formContainer) formContainer.classList.add('hidden');
+    const historyForm = document.getElementById('add-asset-history-form');
+    if (historyForm) historyForm.reset();
+
+    // Fill Details
+    const elName = document.getElementById('detail-asset-name');
+    const elQty = document.getElementById('detail-quantity');
+    const elInvested = document.getElementById('detail-invested');
+    const elCurrent = document.getElementById('detail-current');
+    const elPl = document.getElementById('detail-pl');
+
+    if (elName) elName.textContent = asset.name;
+    if (elQty) elQty.textContent = asset.quantity;
+    if (elInvested) elInvested.textContent = `€ ${asset.invested.toFixed(2)}`;
+    if (elCurrent) elCurrent.textContent = `€ ${asset.current.toFixed(2)}`;
 
     const pl = asset.current - asset.invested;
-    const plEl = document.getElementById('detail-pl');
-    plEl.textContent = `€ ${pl.toFixed(2)}`;
-    plEl.className = pl >= 0 ? 'positive' : 'negative';
-    plEl.style.color = pl >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+    if (elPl) {
+        elPl.textContent = `€ ${pl.toFixed(2)}`;
+        elPl.className = 'detail-value ' + (pl >= 0 ? 'positive' : 'negative');
+        elPl.style.color = pl >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+    }
 
     assetHistoryBody.innerHTML = '';
 
@@ -2024,7 +2042,7 @@ window.showAssetDetails = function (id) {
     asset.history.forEach(entry => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${new Date(entry.date).toLocaleDateString('it-IT')}</td>
+            <td>${entry.date ? new Date(entry.date).toLocaleDateString('it-IT') : '-'}</td>
             <td>${entry.type === 'buy' ? 'Acquisto' : 'Vendita'}</td>
             <td>${entry.quantity}</td>
             <td>€ ${(entry.price || 0).toFixed(2)}</td>
@@ -2035,6 +2053,90 @@ window.showAssetDetails = function (id) {
 
     assetDetailsModal.classList.add('active');
 };
+
+// Toggle History Form
+const btnShowAddHistory = document.getElementById('btn-show-add-history');
+if (btnShowAddHistory) {
+    btnShowAddHistory.addEventListener('click', () => {
+        const formContainer = document.getElementById('add-asset-history-form-container');
+        formContainer.classList.toggle('hidden');
+    });
+}
+
+// Handle Add History Submit
+const formAddHistory = document.getElementById('add-asset-history-form');
+if (formAddHistory) {
+    formAddHistory.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (!currentAssetId) return;
+
+        const asset = investments.find(a => a.id === currentAssetId);
+        if (!asset) return;
+
+        const type = document.getElementById('hist-type').value;
+        const date = document.getElementById('hist-date').value;
+        const qty = parseFloat(document.getElementById('hist-quantity').value);
+        const totalAmount = parseFloat(document.getElementById('hist-price').value);
+
+        // Track checks
+        if (!qty || !totalAmount) {
+            alert("Inserisci quantità e prezzo.");
+            return;
+        }
+
+        // 1. Add to History
+        asset.history.push({
+            date: date,
+            type: type,
+            quantity: qty,
+            invested: totalAmount,
+            price: totalAmount / qty
+        });
+
+        // 2. Update Asset Totals
+        // Calculate current price per unit to update 'current' value logically
+        const currentPricePerUnit = asset.quantity > 0 ? (asset.current / asset.quantity) : 0;
+
+        if (type === 'buy') {
+            asset.quantity += qty;
+            asset.invested += totalAmount;
+            // For current value, we assume the purchased amount ADDS to the current value worth?
+            // Or we assume Market Price rules. 
+            // If it's a manual asset, we might want to update current value by adding the PURCHASE value (assuming we bought at market).
+            // If it's a live asset, it will update on next fetch.
+            // Let's add the purchase value to current, assuming fair value.
+            asset.current += totalAmount;
+        } else {
+            // Sell
+            if (qty > asset.quantity) {
+                alert("Non puoi vendere più di quanto possiedi!");
+                return; // Abort
+            }
+
+            // Proportional reduction of Invested (Cost Basis)
+            const ratio = qty / asset.quantity;
+            const costBasisRemoved = asset.invested * ratio;
+
+            asset.quantity -= qty;
+            asset.invested -= costBasisRemoved;
+
+            // Reduce current value proportionally
+            asset.current -= (asset.current * ratio);
+        }
+
+        // 3. Save
+        localStorage.setItem('investments', JSON.stringify(investments));
+
+        // 4. Render
+        renderInvestments();
+        showAssetDetails(currentAssetId); // Refresh modal
+        updateAllocationChart();
+
+        // Hide form
+        document.getElementById('add-asset-history-form-container').classList.add('hidden');
+        formAddHistory.reset();
+    });
+}
 
 window.addEventListener('click', (e) => {
     if (e.target == assetDetailsModal) assetDetailsModal.classList.remove('active');
