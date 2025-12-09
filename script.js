@@ -214,6 +214,26 @@ function renderWalletList() {
         if (wallet.id === currentWalletId) option.selected = true;
         walletSelectTransaction.appendChild(option);
     });
+
+    // Group: Revolving Cards
+    if (typeof revolvingCards !== 'undefined' && revolvingCards.length > 0) {
+        const cardGroup = document.createElement('optgroup');
+        cardGroup.label = 'Carte di Credito';
+        let hasCards = false;
+
+        revolvingCards.forEach(card => {
+            if (card.status === 'archived') return;
+            const option = document.createElement('option');
+            option.value = `card_${card.id}`;
+            option.textContent = card.name;
+            cardGroup.appendChild(option);
+            hasCards = true;
+        });
+
+        if (hasCards) {
+            walletSelectTransaction.appendChild(cardGroup);
+        }
+    }
 }
 
 function getWalletIcon(type) {
