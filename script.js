@@ -1428,7 +1428,8 @@ function renderLoans() {
                 <button class="btn-small" onclick="viewAmortization('${loan.id}')">Piano</button>
                 ${isArchived ?
                 `<button class="btn-small" onclick="restoreLoan('${loan.id}')">Ripristina</button>` :
-                `<button class="btn-small" onclick="archiveLoan('${loan.id}')">Archivia</button>`
+                `<button class="btn-small" onclick="openEditLoanModal('${loan.id}')">Modifica</button>
+                 <button class="btn-small" onclick="archiveLoan('${loan.id}')">Archivia</button>`
             }
                 <button class="btn-small" onclick="deleteLoan('${loan.id}')" style="color: var(--danger-color); border-color: var(--danger-color);">Elimina</button>
             </div>
@@ -1536,6 +1537,39 @@ function updateTotalDebt() {
     }
 }
 
+// Open Modal for Edit
+function openEditLoanModal(id) {
+    const loan = loans.find(l => l.id === id);
+    if (!loan) return;
+
+    document.getElementById('loan-name').value = loan.name;
+    document.getElementById('loan-amount').value = loan.amount;
+    document.getElementById('loan-rate').value = loan.rate;
+    document.getElementById('loan-months').value = loan.months;
+    document.getElementById('loan-start-date').value = loan.startDate;
+
+    loanForm.dataset.mode = 'edit';
+    loanForm.dataset.editId = id;
+
+    // Change Title/Button
+    loanModal.querySelector('.modal-header h3').textContent = 'Modifica Prestito';
+    loanModal.querySelector('.submit-btn').textContent = 'Salva Modifiche';
+
+    loanModal.classList.add('active');
+}
+
+// Override function to open modal in add mode
+const _originalOpenModal = window.openModal; // Assuming openModal is defined elsewhere but here we use specific ID click
+// Actually, we need to reset the form when opening in "Add" mode.
+document.getElementById('btn-add-loan').addEventListener('click', () => {
+    loanForm.reset();
+    loanForm.dataset.mode = 'add';
+    loanForm.removeAttribute('data-edit-id');
+    loanModal.querySelector('.modal-header h3').textContent = 'Nuovo Prestito';
+    loanModal.querySelector('.submit-btn').textContent = 'Aggiungi Prestito';
+    loanModal.classList.add('active');
+});
+
 async function addLoan(e) {
     e.preventDefault();
     const name = document.getElementById('loan-name').value;
@@ -1544,7 +1578,7 @@ async function addLoan(e) {
     const months = parseInt(document.getElementById('loan-months').value);
     const startDate = document.getElementById('loan-start-date').value;
 
-    const loan = {
+    const loanData = {
         name,
         amount,
         rate,
@@ -1553,7 +1587,11 @@ async function addLoan(e) {
     };
 
     try {
-        await window.dbOps.addLoanToDb(loan);
+        if (loanForm.dataset.mode === 'edit' && loanForm.dataset.editId) {
+            await window.dbOps.updateLoan(loanForm.dataset.editId, loanData);
+        } else {
+            await window.dbOps.addLoanToDb(loanData);
+        }
         loanModal.classList.remove('active');
         loanForm.reset();
     } catch (error) {
