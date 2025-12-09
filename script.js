@@ -2003,6 +2003,11 @@ assetForm.addEventListener('submit', addAsset);
 
 document.getElementById('asset-select').addEventListener('change', (e) => {
     const customInput = document.getElementById('asset-name-custom');
+    const walletSection = document.getElementById('wallet-import-section');
+    const selectedOption = e.target.options[e.target.selectedIndex];
+    const type = selectedOption.dataset.type;
+
+    // Custom Name Input
     if (e.target.value === 'custom') {
         customInput.classList.remove('hidden');
         customInput.required = true;
@@ -2010,6 +2015,119 @@ document.getElementById('asset-select').addEventListener('change', (e) => {
         customInput.classList.add('hidden');
         customInput.required = false;
         triggerAutoPrice();
+    }
+
+    // Wallet Import Section (Only for Crypto)
+    if (type === 'crypto') {
+        walletSection.classList.remove('hidden');
+
+        // Update caption based on coin
+        const caption = document.getElementById('btn-scan-caption');
+        if (selectedOption.dataset.apiId === 'bitcoin') caption.textContent = '(Bitcoin Legacy/Segwit)';
+        else if (selectedOption.dataset.apiId === 'ethereum') caption.textContent = '(Ethereum/ERC20)';
+        else caption.textContent = '(Supporto Beta)';
+    } else {
+        walletSection.classList.add('hidden');
+    }
+});
+
+// Wallet Scanning Logic
+document.getElementById('btn-scan-wallet').addEventListener('click', async () => {
+    const address = document.getElementById('asset-wallet-address').value.trim();
+    const select = document.getElementById('asset-select');
+    const selectedOption = select.options[select.selectedIndex];
+    const apiId = selectedOption.dataset.apiId;
+
+    if (!address) {
+        alert("Inserisci un indirizzo wallet.");
+        return;
+    }
+
+    const btn = document.getElementById('btn-scan-wallet');
+    const icon = btn.querySelector('i');
+    const originalIcon = icon.className;
+
+    // Loading State
+    icon.className = 'fas fa-spinner fa-spin';
+    btn.disabled = true;
+
+    try {
+        let quantity = 0;
+        let estimatedInvested = 0;
+        let found = false;
+
+        // Bitcoin Strategy
+        if (apiId === 'bitcoin') {
+            const response = await fetch(`https://blockchain.info/rawaddr/${address}?limit=10&cors=true`);
+            if (!response.ok) throw new Error('Bitcoin API Error');
+            const data = await response.json();
+
+            quantity = data.final_balance / 100000000; // Satoshis to BTC
+
+            // Try to estimate cost basis from last few INCOMING transactions
+            // Note: This is a rough estimation.
+            let analyzedTxCount = 0;
+            for (const tx of data.txs) {
+                const result = tx.result; // Amount change for this address
+                if (result > 0) {
+                    // Incoming transaction (Buy/Transfer)
+                    const date = new Date(tx.time * 1000).toISOString().split('T')[0];
+                    const amount = result / 100000000;
+
+                    // Fetch price at that time
+                    const priceAtTime = await fetchTransactionPrice('bitcoin', date);
+                    if (priceAtTime) {
+                        estimatedInvested += (priceAtTime * amount);
+                    }
+                    analyzedTxCount++;
+                }
+                if (analyzedTxCount >= 5) break; // Limit to save API calls/time
+            }
+            found = true;
+        }
+        // Ethereum Strategy
+        else if (apiId === 'ethereum') {
+            // Using BlockCypher (Free tier limits apply)
+            const response = await fetch(`https://api.blockcypher.com/v1/eth/main/addrs/${address}/balance`);
+            if (!response.ok) throw new Error('Ethereum API Error');
+            const data = await response.json();
+
+            quantity = data.balance / 1000000000000000000; // Wei to ETH
+
+            // Cost basis hard to fetch on simple balance endpoint
+            // We just leave estimatedInvested as 0 or current value approximation
+            found = true;
+        } else {
+            alert("Scansione automatica supportata solo per Bitcoin ed Ethereum al momento.");
+        }
+
+        if (found) {
+            document.getElementById('asset-quantity').value = quantity;
+
+            if (estimatedInvested > 0) {
+                document.getElementById('asset-invested').value = estimatedInvested.toFixed(2);
+                alert(`Saldo recuperato: ${quantity} ${apiId.toUpperCase()}\nCosto stimato (parziale): €${estimatedInvested.toFixed(2)}`);
+            } else {
+                // Fallback: Set Invested to Current Value (0% P/L)
+                const currentPrice = await fetchTransactionPrice(apiId, new Date().toISOString().split('T')[0]);
+                if (currentPrice) {
+                    document.getElementById('asset-invested').value = (quantity * currentPrice).toFixed(2);
+                    alert(`Saldo recuperato: ${quantity} ${apiId.toUpperCase()}\nInvestito impostato al valore attuale (modificabile).`);
+                } else {
+                    alert(`Saldo recuperato: ${quantity} ${apiId.toUpperCase()}`);
+                }
+            }
+
+            // Trigger auto calculation of current value if needed
+            triggerAutoPrice();
+        }
+
+    } catch (e) {
+        console.error(e);
+        alert("Errore scansione wallet: " + e.message);
+    } finally {
+        icon.className = originalIcon;
+        btn.disabled = false;
     }
 });
 

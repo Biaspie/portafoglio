@@ -409,6 +409,28 @@
                         <input type="text" id="asset-name-custom" placeholder="Nome Asset" class="hidden">
                     </div>
 
+                    <div id="wallet-import-section" class="form-group hidden"
+                        style="background: var(--bg-secondary); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <label for="asset-wallet-address"
+                            style="display: flex; justify-content: space-between; align-items: center;">
+                            Importa da Wallet
+                            <span style="font-size: 0.8rem; color: var(--accent-color); cursor: pointer;"
+                                id="btn-scan-caption">(BTC/ETH)</span>
+                        </label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="asset-wallet-address" placeholder="Indirizzo Wallet (Public Key)"
+                                style="font-size: 0.9rem;">
+                            <button type="button" id="btn-scan-wallet" class="btn-small"
+                                style="background: var(--accent-color); color: white; border: none;">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        <small
+                            style="color: var(--text-secondary); font-size: 0.8rem; display: block; margin-top: 5px;">
+                            Recupera saldo e stima transazioni.
+                        </small>
+                    </div>
+
                     <div class="form-group">
                         <label for="asset-date">Data Operazione</label>
                         <input type="date" id="asset-date" required>
@@ -690,7 +712,7 @@
     <!-- Database Operations -->
     <script src="database.js?v=1.8.2"></script>
 
-    <script src="script.js?v=1.10.2"></script>
+    <script src="script.js?v=1.10.3"></script>
 </body>
 
 </html>
