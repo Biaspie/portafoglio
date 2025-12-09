@@ -823,28 +823,28 @@ const assetList = {
     crypto: {
         label: 'Criptovalute',
         items: [
-            { name: 'Bitcoin', apiId: 'bitcoin' },
-            { name: 'Ethereum', apiId: 'ethereum' },
-            { name: 'Solana', apiId: 'solana' },
-            { name: 'Cardano', apiId: 'cardano' },
-            { name: 'Ripple', apiId: 'ripple' },
-            { name: 'Polkadot', apiId: 'polkadot' },
-            { name: 'Dogecoin', apiId: 'dogecoin' },
-            { name: 'Avalanche', apiId: 'avalanche-2' },
-            { name: 'Chainlink', apiId: 'chainlink' },
-            { name: 'Polygon', apiId: 'matic-network' }
+            { name: 'Bitcoin', apiId: 'bitcoin', type: 'crypto' },
+            { name: 'Ethereum', apiId: 'ethereum', type: 'crypto' },
+            { name: 'Solana', apiId: 'solana', type: 'crypto' },
+            { name: 'Cardano', apiId: 'cardano', type: 'crypto' },
+            { name: 'Ripple', apiId: 'ripple', type: 'crypto' },
+            { name: 'Polkadot', apiId: 'polkadot', type: 'crypto' },
+            { name: 'Dogecoin', apiId: 'dogecoin', type: 'crypto' },
+            { name: 'Avalanche', apiId: 'avalanche-2', type: 'crypto' },
+            { name: 'Chainlink', apiId: 'chainlink', type: 'crypto' },
+            { name: 'Polygon', apiId: 'matic-network', type: 'crypto' }
         ]
     },
     stocks: {
         label: 'Azioni (Prezzo Manuale)',
         items: [
-            { name: 'Apple', apiId: null },
-            { name: 'Microsoft', apiId: null },
-            { name: 'Google', apiId: null },
-            { name: 'Amazon', apiId: null },
-            { name: 'Tesla', apiId: null },
-            { name: 'Meta', apiId: null },
-            { name: 'NVIDIA', apiId: null }
+            { name: 'Apple', apiId: null, type: 'stock' },
+            { name: 'Microsoft', apiId: null, type: 'stock' },
+            { name: 'Google', apiId: null, type: 'stock' },
+            { name: 'Amazon', apiId: null, type: 'stock' },
+            { name: 'Tesla', apiId: null, type: 'stock' },
+            { name: 'Meta', apiId: null, type: 'stock' },
+            { name: 'NVIDIA', apiId: null, type: 'stock' }
         ]
     },
     etf: {
@@ -860,7 +860,7 @@ const assetList = {
     custom: {
         label: 'Altro',
         items: [
-            { name: 'Altro...', value: 'custom' }
+            { name: 'Altro...', value: 'custom', type: 'custom' }
         ]
     }
 };
@@ -1111,7 +1111,7 @@ function updateAllocationChart() {
 
 // API Integration
 async function fetchCryptoPrices() {
-    const cryptoAssets = investments.filter(a => a.apiId && a.type !== 'etf');
+    const cryptoAssets = investments.filter(a => a.apiId && a.type === 'crypto');
     if (cryptoAssets.length === 0) return;
 
     const ids = cryptoAssets.map(a => a.apiId).join(',');
