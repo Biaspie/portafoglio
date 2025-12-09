@@ -2495,36 +2495,36 @@ function renderSubscriptions() {
     // 1. Render Management List (Abbonamenti Attivi)
     if (subscriptions.length === 0) {
         subscriptionsListEl.innerHTML = `
-            <li class="empty-state">
+            <div class="empty-state" style="grid-column: 1 / -1;">
                  <i class="fas fa-play-circle"></i>
                 <p>Nessun abbonamento attivo</p>
-            </li>
+            </div>
         `;
     } else {
         subscriptions.forEach(sub => {
-            const item = document.createElement('li');
-            item.classList.add('transaction-item');
-            item.classList.add('expense');
+            const item = document.createElement('div');
+            item.classList.add('debt-card'); // Use Debt Card Style
 
             const categoryData = allCategories[sub.category] || allCategories.other;
             const iconClass = categoryData.icon;
+            const color = categoryData.color;
 
             item.innerHTML = `
-                <div class="t-info">
-                    <div class="t-icon">
-                        <i class="fas ${iconClass}"></i>
+                <div class="debt-header">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="icon-circle" style="background-color: ${color}20; color: ${color}; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
+                            <i class="fas ${iconClass}"></i>
+                        </div>
+                        <div>
+                            <div class="debt-title">${sub.name} <span class="badge-recurring" style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: var(--bg-secondary); color: var(--text-secondary); margin-left: 5px;">${getUrlFrequency(sub.frequency)}</span></div>
+                            <div class="debt-subtitle">Prossimo rinnovo: ${formatDate(sub.nextDueDate)}</div>
+                        </div>
                     </div>
-                    <div class="t-details">
-                        <h4>${sub.name} <span class="badge-recurring">${getUrlFrequency(sub.frequency)}</span></h4>
-                        <small>Prossimo rinnovo: ${formatDate(sub.nextDueDate)}</small>
-                    </div>
+                    <div class="debt-amount" style="color: var(--danger-color);">€ ${sub.amount.toFixed(2)}</div>
                 </div>
-                <div class="t-actions">
-                    <span class="t-amount expense">
-                        -€ ${Math.abs(sub.amount).toFixed(2)}
-                    </span>
-                    <button class="delete-btn" onclick="deleteSubscription('${sub.id}')">
-                        <i class="fas fa-trash"></i>
+                <div class="debt-actions" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                    <button class="btn-small delete" onclick="deleteSubscription('${sub.id}')" style="color: var(--danger-color); background: none; border: none;">
+                        <i class="fas fa-trash"></i> Disdici
                     </button>
                 </div>
             `;
