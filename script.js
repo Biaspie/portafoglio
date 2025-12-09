@@ -2108,8 +2108,52 @@ function calculateNextDate(dateStr, frequency) {
 
 function renderSubscriptions() {
     if (!subscriptionsListEl) return;
-    subscriptionsListEl.innerHTML = '';
+    // 1. Render Management List (Abbonamenti Attivi)
+    if (subscriptions.length === 0) {
+        subscriptionsListEl.innerHTML = `
+            <li class="empty-state">
+                 <i class="fas fa-play-circle"></i>
+                <p>Nessun abbonamento attivo</p>
+            </li>
+        `;
+    } else {
+        subscriptions.forEach(sub => {
+            const item = document.createElement('li');
+            item.classList.add('transaction-item');
+            item.classList.add('expense');
 
+            const categoryData = allCategories[sub.category] || allCategories.other;
+            const iconClass = categoryData.icon;
+
+            item.innerHTML = `
+                <div class="t-info">
+                    <div class="t-icon">
+                        <i class="fas ${iconClass}"></i>
+                    </div>
+                    <div class="t-details">
+                        <h4>${sub.name} <span class="badge-recurring">${getUrlFrequency(sub.frequency)}</span></h4>
+                        <small>Prossimo rinnovo: ${formatDate(sub.nextDueDate)}</small>
+                    </div>
+                </div>
+                <div class="t-actions">
+                    <span class="t-amount expense">
+                        -€ ${Math.abs(sub.amount).toFixed(2)}
+                    </span>
+                    <button class="delete-btn" onclick="deleteSubscription('${sub.id}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            subscriptionsListEl.appendChild(item);
+        });
+    }
+
+    // 2. Render Timeline (Altre Spese Ricorrenti / Proiezioni)
+    renderRecurringTimeline();
+}
+
+function renderRecurringTimeline() {
+    if (!recurringListEl) return;
     recurringListEl.innerHTML = '';
 
     // 1. Gather all recurring items
