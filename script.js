@@ -209,7 +209,7 @@ function renderWalletList() {
 
         // Transaction Modal Option
         const option = document.createElement('option');
-        option.value = wallet.id;
+        option.value = `wallet_${wallet.id}`; // Prefix to distinguish
         option.text = wallet.name;
         if (wallet.id === currentWalletId) option.selected = true;
         walletSelectTransaction.appendChild(option);
@@ -329,6 +329,7 @@ async function init() {
             unsubscribeRevolving = window.dbOps.subscribeToRevolving((data) => {
                 revolvingCards = data;
                 renderDebts();
+                renderWalletList(); // Update transaction selector
             });
 
             // 3. Installments (BNPL)
@@ -421,11 +422,21 @@ async function addTransaction(e) {
     const amount = +document.getElementById('amount').value;
     const category = document.getElementById('category').value;
     const date = document.getElementById('date').value;
-    const walletId = document.getElementById('wallet-select-transaction').value;
+    const rawWalletId = document.getElementById('wallet-select-transaction').value;
 
-    if (!walletId) {
+    if (!rawWalletId) {
         alert("Seleziona un portafoglio valido.");
         return;
+    }
+
+    let realWalletId = rawWalletId;
+    let sourceType = 'wallet';
+
+    if (rawWalletId.startsWith('card_')) {
+        sourceType = 'card';
+        realWalletId = rawWalletId.replace('card_', '');
+    } else if (rawWalletId.startsWith('wallet_')) {
+        realWalletId = rawWalletId.replace('wallet_', '');
     }
 
     const description = document.getElementById('description').value || allCategories[category].label;
@@ -437,7 +448,8 @@ async function addTransaction(e) {
     }
 
     const transaction = {
-        walletId,
+        walletId: realWalletId,
+        sourceType: sourceType,
         type,
         amount,
         category,
@@ -468,6 +480,16 @@ async function addTransaction(e) {
     }
 
     try {
+        // If source is a Revolving Card, update its balance (Debt)
+        if (sourceType === 'card') {
+            const card = revolvingCards.find(c => c.id === realWalletId);
+            if (card) {
+                const balanceChange = type === 'expense' ? amount : -amount;
+                const newBalance = parseFloat(card.balance) + balanceChange;
+                await window.dbOps.updateRevolving(realWalletId, { balance: newBalance });
+            }
+        }
+
         await window.dbOps.addTransactionToDb(transaction);
 
         closeModal();
