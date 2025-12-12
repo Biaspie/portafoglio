@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Portafoglio</string>
+    <string name="title_activity_main">Portafoglio</string>
+    <string name="package_name">com.portafoglio.app</string>
+    <string name="custom_url_scheme">com.portafoglio.app</string>
+</resources>
