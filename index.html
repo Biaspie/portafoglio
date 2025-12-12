@@ -15,6 +15,50 @@
 
 <body>
     <div class="app-wrapper">
+        <!-- Mobile Header (Appears only on mobile) -->
+        <header class="mobile-header">
+            <div class="logo">
+                <i class="fas fa-wallet" style="margin-right: 10px; color: var(--primary-color);"></i>
+                <span>Portafoglio</span>
+            </div>
+            <!-- Duplicate Wallet Selector logic will be handled by JS moving/copying or just render a simple one here. 
+                 For simplicity, we'll placeholder it and let JS populate or use a dedicated mobile one. 
+                 Actually, reusing the existing one is safer if we just move it via CSS, but we hid Sidebar.
+                 So we add a simplified trigger here. -->
+            <div class="wallet-selector" id="mobile-wallet-trigger"
+                onclick="document.getElementById('wallet-modal').classList.add('active')">
+                <i class="fas fa-wallet"></i>
+                <span id="mobile-wallet-name">Wallet</span>
+            </div>
+        </header>
+
+        <!-- Bottom Navigation for Mobile -->
+        <nav class="bottom-nav">
+            <div class="nav-item active" onclick="showDashboard()">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+            </div>
+            <div class="nav-item" onclick="showAnalysis()">
+                <i class="fas fa-chart-pie"></i>
+                <span>Analisi</span>
+            </div>
+            <div class="nav-item" onclick="showInvestments()">
+                <i class="fas fa-chart-line"></i>
+                <span>Invest</span>
+            </div>
+            <div class="nav-item" onclick="showRecurring()">
+                <i class="fas fa-sync-alt"></i>
+                <span>Cicliche</span>
+            </div>
+            <div class="nav-item" onclick="showDebts()">
+                <i class="fas fa-hand-holding-usd"></i>
+                <span>Debiti</span>
+            </div>
+            <div class="nav-item" onclick="showBudget()">
+                <i class="fas fa-wallet"></i>
+                <span>Budget</span>
+            </div>
+        </nav>
         <!-- Sidebar Navigation -->
         <nav class="sidebar">
             <div class="sidebar-header">
@@ -61,6 +105,10 @@
                     <i class="fas fa-hand-holding-usd"></i>
                     <span>Debiti</span>
                 </li>
+                <li id="nav-budget">
+                    <i class="fas fa-wallet"></i>
+                    <span>Budget</span>
+                </li>
             </ul>
 
             <div class="user-profile-section"
@@ -93,6 +141,7 @@
                     <div class="balance-card">
                         <div class="balance-label">Saldo Totale</div>
                         <div class="balance-amount" id="total-balance">€ 0.00</div>
+                        <div id="net-worth-display" class="net-worth-label">Patrimonio Reale: € 0.00</div>
                         <div class="balance-details">
                             <div class="detail-item income">
                                 <div class="detail-label">Entrate</div>
@@ -122,7 +171,14 @@
                 <section class="transactions-section">
                     <div class="section-header">
                         <h2>Transazioni Recenti</h2>
-                        <button id="clear-all" class="text-btn">Pulisci tutto</button>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="btn-export-csv" class="text-btn" title="Esporta CSV"><i
+                                    class="fas fa-file-export"></i></button>
+                            <button id="btn-import-csv-trigger" class="text-btn" title="Importa CSV"><i
+                                    class="fas fa-file-import"></i></button>
+                            <input type="file" id="csv-file-input" accept=".csv" class="hidden">
+                            <button id="clear-all" class="text-btn" style="color: var(--danger-color);">Pulisci</button>
+                        </div>
                     </div>
                     <ul id="transaction-list" class="transaction-list">
                         <!-- Transactions will be added here dynamically -->
@@ -268,15 +324,40 @@
                         <p style="color: var(--text-secondary); font-size: 0.9rem;">Nessuna scadenza imminente.</p>
                     </div>
                 </div>
+            </section>
 
-                <div id="installments-list" class="investments-grid">
-                    <!-- Installment plans added here -->
+            <!-- Budget View -->
+            <section id="budget-view" class="hidden">
+                <header>
+                    <h1>Gestione Budget</h1>
+                    <div class="balance-card" style="background: linear-gradient(135deg, #0984e3, #00cec9);">
+                        <div class="balance-label">Budget Totale</div>
+                        <div class="balance-amount" id="total-budget-amount">€ 0.00</div>
+                        <div class="balance-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Speso</div>
+                                <div class="detail-value" id="total-budget-spent">€ 0.00</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Rimanente</div>
+                                <div class="detail-value" id="total-budget-remaining">€ 0.00</div>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                <div class="section-header">
+                    <h2>I Miei Budget</h2>
+                    <button id="btn-add-budget" class="text-btn"><i class="fas fa-plus"></i> Nuovo Budget</button>
+                </div>
+
+                <div id="budget-list" class="budget-grid">
+                    <!-- Budgets added here -->
                 </div>
             </section>
         </main>
     </div>
 
-    <!-- Modal for Adding Installment Plan -->
     <div id="installment-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -399,9 +480,32 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="asset-select">Nome Asset</label>
-                        <select id="asset-select" required>
-                            <!-- Populated by JS -->
-                        </select>
+                        <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                            <select id="asset-select" required style="flex-grow: 1;">
+                                <!-- Populated by JS -->
+                            </select>
+                            <button type="button" id="btn-toggle-search-asset" class="btn-small"
+                                style="width: auto; padding: 0 10px;">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+
+                        <div id="asset-search-container" class="hidden"
+                            style="margin-bottom: 10px; background: var(--bg-secondary); padding: 10px; border-radius: 8px;">
+                            <div style="display: flex; gap: 5px;">
+                                <input type="text" id="asset-search-input" placeholder="Cerca es. Nasdaq, Gold..."
+                                    style="font-size: 0.9rem;">
+                                <button type="button" id="btn-search-asset-api" class="submit-btn"
+                                    style="width: auto; margin: 0; padding: 0 15px; font-size: 0.9rem;">
+                                    Vai
+                                </button>
+                            </div>
+                            <ul id="asset-search-results"
+                                style="list-style: none; margin-top: 10px; max-height: 150px; overflow-y: auto; padding: 0;">
+                                <!-- Results -->
+                            </ul>
+                        </div>
+
                         <input type="text" id="asset-name-custom" placeholder="Nome Asset" class="hidden">
                     </div>
 
@@ -516,7 +620,41 @@
         </div>
     </div>
 
-    <!-- Modal for Adding Revolving Card -->
+    <!-- Modal for Adding Budget -->
+    <div id="budget-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Nuovo Budget</h3>
+                <button id="close-budget-modal" class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="budget-form">
+                <div class="form-group">
+                    <label for="budget-name">Nome Budget</label>
+                    <input type="text" id="budget-name" placeholder="Es. Spesa Alimentare" required>
+                </div>
+                <div class="form-group">
+                    <label for="budget-amount">Limite Mensile (€)</label>
+                    <input type="number" id="budget-amount" placeholder="0.00" step="0.01" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Categorie Incluse</label>
+                    <div class="category-multi-select" id="budget-category-select">
+                        <label class="checkbox-container main-option">
+                            <input type="checkbox" id="budget-cat-all" value="all">
+                            <span class="checkmark"></span>
+                            Tutte le Categorie
+                        </label>
+                        <div id="budget-categories-list" class="checkbox-grid">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn">Salva Budget</button>
+            </form>
+        </div>
+    </div>
     <div id="revolving-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -537,9 +675,20 @@
                     <input type="number" id="revolving-balance" placeholder="0.00" step="0.01" required>
                 </div>
                 <div class="form-group">
-                    <label for="revolving-rate">Tasso Interesse (%)</label>
-                    <input type="number" id="revolving-rate" placeholder="0.00" step="0.01" value="0">
+                    <label for="revolving-type">Tipo di Rimborso</label>
+                    <select id="revolving-type">
+                        <option value="revolving">Rateale (Revolving)</option>
+                        <option value="saldo">A Saldo (Fine Mese)</option>
+                    </select>
                 </div>
+
+                <div id="revolving-details-container">
+                    <div class="form-group">
+                        <label for="revolving-rate">Tasso Interesse (%)</label>
+                        <input type="number" id="revolving-rate" placeholder="0.00" step="0.01" value="0">
+                    </div>
+                </div>
+
                 <!-- New Fields -->
                 <div class="form-group">
                     <label for="revolving-monthly-payment">Rata Mensile (€)</label>
@@ -563,7 +712,7 @@
                 <h3>Piano di Ammortamento</h3>
                 <button id="close-amortization-modal" class="close-btn"><i class="fas fa-times"></i></button>
             </div>
-            <div style="max-height: 400px; overflow-y: auto;">
+            <div class="amortization-table-container" style="max-height: 400px; overflow-y: auto;">
                 <table class="amortization-table"
                     style="width: 100%; border-collapse: collapse; color: var(--text-secondary); font-size: 0.9rem;">
                     <thead>
@@ -592,8 +741,7 @@
                 <button id="close-asset-details-modal" class="close-btn"><i class="fas fa-times"></i></button>
             </div>
             <div id="asset-details-content">
-                <div class="asset-details-grid"
-                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                <div class="asset-details-grid">
                     <div>
                         <span class="detail-label">Nome Asset</span>
                         <div class="detail-value" id="detail-asset-name" style="font-weight: bold;">-</div>
@@ -613,102 +761,103 @@
                     <div style="grid-column: 1 / -1;">
                         <span class="detail-label">P/L Totale</span>
                         <div class="detail-value" id="detail-pl">-</div>
+                        <div class="modal-body">
+                            <div class="asset-chart-container">
+                                <canvas id="asset-detail-chart"></canvas>
+                            </div>
+
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h3>Storico</h3>
+                                <button id="btn-show-add-history" class="btn-small"><i class="fas fa-plus"></i></button>
+                            </div>
+
+                            <!-- Hidden Form for Adding History -->
+                            <div id="add-asset-history-form-container" class="hidden"
+                                style="margin-bottom: 15px; padding: 10px; background: var(--bg-secondary); border-radius: 8px;">
+                                <form id="add-asset-history-form">
+                                    <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                                        <select id="hist-type"
+                                            style="padding: 5px; border-radius: 5px; border:1px solid var(--border-color); background: var(--bg-color); color:var(--text-primary);">
+                                            <option value="buy">Acquisto</option>
+                                            <option value="sell">Vendita</option>
+                                        </select>
+                                        <input type="date" id="hist-date" required style="flex:1;">
+                                    </div>
+                                    <div style="display: flex; gap: 5px;">
+                                        <input type="number" id="hist-quantity" placeholder="Qtà" step="any" required
+                                            style="width: 80px;">
+                                        <input type="number" id="hist-price" placeholder="Totale €" step="any" required
+                                            style="flex:1;">
+                                        <button type="submit" class="submit-btn"
+                                            style="width: auto; margin-top:0;">Ok</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div class="history-table-container"> <!-- Wrapper for scroll -->
+                                <table class="history-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Data</th>
+                                            <th>Tipo</th>
+                                            <th>Qtà</th>
+                                            <th>Prezzo</th>
+                                            <th>Totale</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="asset-history-body">
+                                        <!-- Populated by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <!-- Rows populated by JS -->
                     </div>
                 </div>
             </div>
 
-            <div class="section-header"
-                style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
-                <h4>Storico Transazioni</h4>
-                <button id="btn-show-add-history" class="btn-small"
-                    style="background: var(--accent-color); color: white; border: none;">
-                    <i class="fas fa-plus"></i> Nuova Op.
-                </button>
-            </div>
+            <!-- Firebase SDK -->
+            <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+            <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+            <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
-            <div id="add-asset-history-form-container" class="hidden"
-                style="background: var(--bg-secondary); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
-                <h5 style="margin-bottom: 10px;">Aggiungi Movimento</h5>
-                <form id="add-asset-history-form">
-                    <div class="form-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
-                        <select id="hist-type"
-                            style="padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); flex: 1;">
-                            <option value="buy">Acquisto</option>
-                            <option value="sell">Vendita</option>
-                        </select>
-                        <input type="date" id="hist-date" required
-                            style="padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); flex: 1;">
-                    </div>
-                    <div class="form-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
-                        <input type="number" id="hist-quantity" placeholder="Quantità" step="any" required
-                            style="padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); flex: 1; width: 100%;">
-                        <input type="number" id="hist-price" placeholder="Prezzo Totale €" step="0.01" required
-                            style="padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); flex: 1; width: 100%;">
-                    </div>
-                    <button type="submit" class="submit-btn" style="width: 100%;">Salva Movimento</button>
-                </form>
-            </div>
-            <div style="max-height: 300px; overflow-y: auto;">
-                <table class="amortization-table"
-                    style="width: 100%; border-collapse: collapse; color: var(--text-secondary); font-size: 0.9rem;">
-                    <thead>
-                        <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
-                            <th style="padding: 10px;">Data</th>
-                            <th style="padding: 10px;">Tipo</th>
-                            <th style="padding: 10px;">Quantità</th>
-                            <th style="padding: 10px;">Prezzo</th>
-                            <th style="padding: 10px;">Totale</th>
-                        </tr>
-                    </thead>
-                    <tbody id="asset-history-body">
-                        <!-- Rows populated by JS -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+            <!-- Firebase Config -->
+            <script src="firebase-config.js"></script>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+            <!-- Auth Check -->
+            <script>
+                // Check authentication state
+                firebase.auth().onAuthStateChanged((user) => {
+                    if (!user) {
+                        // User is not signed in, redirect to login page
+                        window.location.href = 'login.html';
+                    } else {
+                        // User is signed in, update UI
+                        const userNameEl = document.getElementById('user-name');
+                        const userEmailEl = document.getElementById('user-email');
 
-    <!-- Firebase Config -->
-    <script src="firebase-config.js"></script>
+                        if (userNameEl) userNameEl.textContent = user.displayName || 'Utente';
+                        if (userEmailEl) userEmailEl.textContent = user.email;
 
-    <!-- Auth Check -->
-    <script>
-        // Check authentication state
-        firebase.auth().onAuthStateChanged((user) => {
-            if (!user) {
-                // User is not signed in, redirect to login page
-                window.location.href = 'login.html';
-            } else {
-                // User is signed in, update UI
-                const userNameEl = document.getElementById('user-name');
-                const userEmailEl = document.getElementById('user-email');
+                        console.log('User authenticated:', user.email);
+                    }
+                });
 
-                if (userNameEl) userNameEl.textContent = user.displayName || 'Utente';
-                if (userEmailEl) userEmailEl.textContent = user.email;
+                // Logout functionality
+                document.getElementById('logout-btn').addEventListener('click', () => {
+                    firebase.auth().signOut().then(() => {
+                        window.location.href = 'login.html';
+                    }).catch((error) => {
+                        console.error('Logout error:', error);
+                    });
+                });
+            </script>
 
-                console.log('User authenticated:', user.email);
-            }
-        });
+            <!-- Database Operations -->
+            <script src="database.js?v=1.8.2"></script>
 
-        // Logout functionality
-        document.getElementById('logout-btn').addEventListener('click', () => {
-            firebase.auth().signOut().then(() => {
-                window.location.href = 'login.html';
-            }).catch((error) => {
-                console.error('Logout error:', error);
-            });
-        });
-    </script>
-
-    <!-- Database Operations -->
-    <script src="database.js?v=1.8.2"></script>
-
-    <script src="script.js?v=1.14.0"></script>
+            <script src="script.js?v=1.25.0"></script>
 </body>
 
 </html>

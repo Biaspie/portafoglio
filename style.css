@@ -423,10 +423,17 @@ h1 {
 }
 
 .balance-amount {
-    font-size: 2.8rem;
-    font-weight: 600;
-    margin-bottom: 25px;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 10px 0;
     letter-spacing: -1px;
+}
+
+.net-worth-label {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 15px;
+    font-weight: 500;
 }
 
 .balance-details {
@@ -1420,6 +1427,154 @@ input[type="radio"]:checked+.type-label.income {
     color: var(--danger-color);
 }
 
+.asset-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+/* Budget Styles */
+.budget-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.budget-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.budget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.budget-progress-container {
+    height: 8px;
+    background-color: var(--bg-color);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 10px 0;
+}
+
+.budget-progress-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.budget-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.category-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 10px;
+}
+
+.category-tag {
+    font-size: 0.75rem;
+    background: var(--bg-secondary);
+    padding: 2px 8px;
+    border-radius: 10px;
+    color: var(--text-secondary);
+}
+
+/* Multi-select Styles */
+.category-multi-select {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+    background: var(--bg-secondary);
+}
+
+.checkbox-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.checkbox-container input {
+    width: auto;
+    margin: 0;
+}
+
+.main-option {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+
+    .investments-grid,
+    .asset-details-grid {
+        grid-template-columns: 1fr !important;
+        padding-bottom: 20px;
+    }
+
+    /* ... rest of media query ... */
+
+    .main-content {
+        padding: 15px;
+        margin-bottom: 80px;
+    }
+
+    .history-table-container,
+    .amortization-table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+        display: block;
+    }
+
+    .amortization-table,
+    .history-table {
+        min-width: 600px;
+    }
+
+    .chart-container,
+    .pie-container {
+        height: 250px;
+    }
+
+    .balance-amount {
+        font-size: 2rem;
+    }
+
+    .charts-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
 /* Recurring & Debts Styles */
 .debt-card {
     background-color: var(--card-bg);
@@ -1659,4 +1814,159 @@ input[type="radio"]:checked+.type-label.income {
     white-space: nowrap;
     min-width: 80px;
     /* Ensure buttons don't shrink too much */
+}
+
+/* Mobile Navigation (Bottom Bar) */
+@media (max-width: 768px) {
+    .app-wrapper {
+        flex-direction: column;
+    }
+
+    /* Force Hide Desktop Sidebar */
+    .sidebar {
+        display: none !important;
+    }
+
+    /* Mobile Header */
+    .mobile-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 20px;
+        background-color: var(--card-bg);
+        border-bottom: 1px solid var(--border-color);
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        z-index: 1000;
+        height: 70px;
+    }
+
+    .mobile-header .logo {
+        display: flex;
+        font-size: 1.2rem;
+    }
+
+    .mobile-header .wallet-selector {
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Main Content Adjustments */
+    .main-content {
+        margin-left: 0;
+        padding: 20px;
+        padding-top: 90px;
+        /* Header + Space */
+        padding-bottom: 100px;
+        /* Nav + Space */
+        width: 100%;
+    }
+
+    /* Bottom Navigation */
+    .bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background-color: var(--card-bg);
+        /* Solid background */
+        border-top: 1px solid var(--border-color);
+        padding: 10px 0;
+        justify-content: space-around;
+        z-index: 1000;
+        padding-bottom: env(safe-area-inset-bottom, 15px);
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+        /* Stronger shadow */
+    }
+
+    .bottom-nav .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        color: var(--text-secondary);
+        font-size: 0.7rem;
+        gap: 5px;
+        cursor: pointer;
+        width: 16%;
+        /* Distributed width */
+        transition: all 0.2s;
+    }
+
+    .bottom-nav .nav-item i {
+        font-size: 1.3rem;
+        margin-bottom: 2px;
+    }
+
+    .bottom-nav .nav-item.active {
+        color: var(--primary-color);
+    }
+
+    .bottom-nav .nav-item.active i {
+        transform: translateY(-2px);
+    }
+
+    /* Analysis View Mobile Fixes */
+    .charts-grid {
+        grid-template-columns: 1fr !important;
+        gap: 20px;
+    }
+
+    .chart-container,
+    .pie-container {
+        height: auto;
+        min-height: 250px;
+        /* Flexible height */
+        max-height: 300px;
+        width: 100%;
+    }
+
+    .month-selector {
+        justify-content: space-between;
+        background: var(--bg-secondary);
+        padding: 10px;
+        border-radius: var(--radius-md);
+        margin-bottom: 25px;
+    }
+
+    /* General Card Stacking */
+    .investments-grid,
+    .budget-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Modal Mobile */
+    .modal-content {
+        width: 100%;
+        height: auto;
+        /* Allow auto height */
+        max-height: 85vh;
+        position: absolute;
+        bottom: 0;
+        margin: 0;
+        border-radius: 20px 20px 0 0;
+        padding-bottom: 40px;
+    }
+
+    .modal {
+        padding: 0;
+        align-items: flex-end;
+    }
+}
+
+/* Desktop: Hide Mobile Header/Nav */
+@media (min-width: 769px) {
+
+    .mobile-header,
+    .bottom-nav {
+        display: none !important;
+    }
 }

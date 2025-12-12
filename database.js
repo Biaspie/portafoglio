@@ -339,5 +339,41 @@ window.dbOps = {
             console.error('Error updating subscription:', error);
             throw error;
         }
+    },
+    // --- Budgets ---
+    addBudget: async (budget) => {
+        const userRef = getUserRef();
+        if (!userRef) return null;
+        try {
+            const docRef = await userRef.collection('budgets').add({
+                ...budget,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            return { id: docRef.id, ...budget };
+        } catch (error) {
+            console.error('Error adding budget:', error);
+            throw error;
+        }
+    },
+
+    deleteBudget: async (id) => {
+        const userRef = getUserRef();
+        if (!userRef) return;
+        try {
+            await userRef.collection('budgets').doc(id).delete();
+        } catch (error) {
+            console.error('Error deleting budget:', error);
+            throw error;
+        }
+    },
+
+    subscribeToBudgets: (callback) => {
+        const userRef = getUserRef();
+        if (!userRef) return () => { };
+        return userRef.collection('budgets')
+            .onSnapshot((snapshot) => {
+                const budgets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                callback(budgets);
+            });
     }
 };

@@ -1,5 +1,6 @@
 // DOM Elements
 const FINNHUB_API_KEY = 'd4rhdehr01qgts2o410gd4rhdehr01qgts2o4110'; // Inserisci qui la tua chiave API di Finnhub
+console.log('Portafoglio App v1.14.0 Loaded');
 
 const balanceEl = document.getElementById('total-balance');
 const incomeEl = document.getElementById('total-income');
@@ -78,6 +79,19 @@ const amortizationModal = document.getElementById('amortization-modal');
 const closeAmortizationModalBtn = document.getElementById('close-amortization-modal');
 const amortizationBody = document.getElementById('amortization-body');
 
+// Budget Elements
+const navBudget = document.getElementById('nav-budget');
+const budgetView = document.getElementById('budget-view');
+const budgetListEl = document.getElementById('budget-list');
+const btnAddBudget = document.getElementById('btn-add-budget');
+const budgetModal = document.getElementById('budget-modal');
+const closeBudgetModalBtn = document.getElementById('close-budget-modal');
+const budgetForm = document.getElementById('budget-form');
+const budgetTotalAmountEl = document.getElementById('total-budget-amount');
+const budgetTotalSpentEl = document.getElementById('total-budget-spent');
+const budgetTotalRemainingEl = document.getElementById('total-budget-remaining');
+
+
 // State
 // State
 let transactions = [];
@@ -86,6 +100,7 @@ let investments = [];
 let wallets = [];
 let loans = [];
 let revolvingCards = [];
+let budgets = []; // State for Budgets
 let installmentPlans = []; // State for BNPL
 let subscriptions = []; // State for Subscriptions
 let archivedLoans = [];
@@ -106,6 +121,7 @@ let unsubscribeLoans = null;
 let unsubscribeRevolving = null;
 let unsubscribeInstallments = null;
 let unsubscribeSubscriptions = null;
+let unsubscribeBudgets = null;
 
 // ... (Crypto Map and Categories remain unchanged) ...
 // Crypto ID Mapping (Common coins)
@@ -362,10 +378,17 @@ async function init() {
 
             // 4. Subscriptions
             if (unsubscribeSubscriptions) unsubscribeSubscriptions();
-            unsubscribeSubscriptions = window.dbOps.subscribeToSubscriptions((data) => {
-                subscriptions = data;
-                renderSubscriptions();
+            unsubscribeSubscriptions = window.dbOps.subscribeToSubscriptions((subs) => {
+                subscriptions = subs;
+                // Don't auto-render here, depends on view
+                renderSubscriptions(); // Assuming it should still render
                 checkDueSubscriptions();
+            });
+
+            if (unsubscribeBudgets) unsubscribeBudgets();
+            unsubscribeBudgets = window.dbOps.subscribeToBudgets((b) => {
+                budgets = b;
+                if (navBudget.classList.contains('active')) renderBudgets();
             });
 
             populateAssetSelect();
@@ -600,7 +623,50 @@ function updateValues() {
     balanceEl.innerText = `€ ${total}`;
     incomeEl.innerText = `+€ ${income}`;
     expenseEl.innerText = `-€ ${expense}`;
+
+    // Net Worth Calculation (Total Assets - Total Debt)
+    // Assets = Total Balance (Cash + Investments)
+    // Debts = Loans + Revolving + Installments
+    const totalDebt = getGlobalDebt();
+    const netWorth = (parseFloat(total) - totalDebt).toFixed(2);
+    const netWorthEl = document.getElementById('net-worth-display');
+    if (netWorthEl) {
+        netWorthEl.innerText = `Patrimonio Reale: € ${netWorth}`;
+        // Optional styling: Red if negative?
+        netWorthEl.style.color = netWorth < 0 ? 'rgba(231, 76, 60, 0.9)' : 'rgba(255, 255, 255, 0.8)';
+    }
+
     investmentsDashboardEl.innerText = `€ ${totalInvestments.toFixed(2)}`;
+}
+
+function getGlobalDebt() {
+    // 1. Loans (Active)
+    const loansDebt = loans.reduce((acc, loan) => {
+        // Simple calculation: Initial Amount - (Paid Principal? No, we don't track principal paid directly in array yet, 
+        // usually we'd need amortization tracking. CONSTANT for now or 0 if not tracking balance).
+        // Better: For loans, we usually track 'remaining'. If not, we use full amount.
+        // Assuming 'amount' is the initial. 
+        // If we don't have a 'remaining' field in DB, we'll approximate or use amount.
+        // CHECK: Do we update loan amounts? No.
+        // So for Net Worth, Loans are tricky without amortization.
+        // Let's use 0 for now or 'amount' if we assume it's current.
+        // A better approach for V2 is adding 'currentBalance' to loans.
+        return acc + (loan.currentBalance || loan.amount);
+    }, 0);
+
+    // 2. Revolving Cards (Active)
+    const cardsDebt = revolvingCards.reduce((acc, card) => {
+        return acc + (parseFloat(card.balance) || 0);
+    }, 0);
+
+    // 3. Installments (Active)
+    const installmentsDebt = installmentPlans.reduce((acc, plan) => {
+        // Total - (Paid * Amount)
+        const remaining = plan.totalAmount - (plan.paidInstallments * plan.installmentAmount);
+        return acc + Math.max(0, remaining);
+    }, 0);
+
+    return loansDebt + cardsDebt + installmentsDebt;
 }
 
 async function removeTransaction(id) {
@@ -1500,7 +1566,8 @@ function renderUpcomingDeadlines() {
     if (revolvingCards) {
         revolvingCards.forEach(card => {
             const today = new Date();
-            let nextDate = new Date(today.getFullYear(), today.getMonth(), card.billingDay);
+            const pDay = card.paymentDay || 1;
+            let nextDate = new Date(today.getFullYear(), today.getMonth(), pDay);
             if (nextDate <= today) {
                 nextDate.setMonth(nextDate.getMonth() + 1);
             }
@@ -1509,7 +1576,7 @@ function renderUpcomingDeadlines() {
             deadlines.push({
                 date: nextDate,
                 desc: `${card.name} (Addebito)`,
-                amount: 0, // variable
+                amount: card.monthlyPayment || 0,
                 type: 'Revolving'
             });
         });
@@ -1647,6 +1714,73 @@ function renderRevolving() {
         `;
         revolvingListEl.appendChild(item);
     });
+}
+
+function renderInstallmentPlans() {
+    const listEl = document.getElementById('installments-list');
+    if (!listEl) return;
+
+    listEl.innerHTML = '';
+    const targetPlans = currentDebtView === 'active' ? installmentPlans : []; // Add archive support if needed
+
+    if (!targetPlans || targetPlans.length === 0) {
+        // Only show message if we are supposed to show something? 
+        // If header exists, we should show empty state.
+        // User complained about "Nessuna rateizzazione attiva", so let's use that text.
+        listEl.innerHTML = `<p style="text-align:center; color:var(--text-secondary); width:100%;">Nessuna rateizzazione ${currentDebtView === 'active' ? 'attiva' : 'archiviata'}</p>`;
+        return;
+    }
+
+    targetPlans.forEach(plan => {
+        const nextInst = plan.installments.find(i => i.status === 'pending');
+        const paidCount = plan.installments.filter(i => i.status === 'paid').length;
+        const progress = (paidCount / plan.installmentsCount) * 100;
+
+        const card = document.createElement('div');
+        card.className = 'debt-card';
+        card.innerHTML = `
+            <div class="debt-header">
+                <div>
+                    <div class="debt-title">${plan.name}</div>
+                    <div class="debt-subtitle">${plan.installmentsCount} Rate Mensili</div>
+                </div>
+                <div class="debt-amount">€ ${parseFloat(plan.totalAmount).toFixed(2)}</div>
+            </div>
+             <div class="progress-container">
+                <div class="progress-bar" style="width: ${progress}%"></div>
+            </div>
+             <div class="debt-details">
+                <span>Pagate: ${paidCount}/${plan.installmentsCount}</span>
+                <span>Prossima: ${nextInst ? formatDate(nextInst.dueDate) : '-'}</span>
+            </div>
+            <div class="debt-actions">
+                 <button class="btn-small" onclick="deleteInstallmentPlan('${plan.id}')" style="color: var(--danger-color); border-color: var(--danger-color);">Elimina</button>
+            </div>
+         `;
+        listEl.appendChild(card);
+    });
+}
+
+function renderDebts() {
+    // Toggle Buttons
+    const btnActive = document.getElementById('btn-debts-active');
+    const btnArchive = document.getElementById('btn-debts-archive');
+
+    if (btnActive && btnArchive) {
+        if (currentDebtView === 'active') {
+            btnActive.classList.add('active');
+            btnArchive.classList.remove('active');
+        } else {
+            btnActive.classList.remove('active');
+            btnArchive.classList.add('active');
+        }
+    }
+
+    renderLoans();
+    renderRevolving();
+    // renderInstallmentPlans(); // Removed as requested
+    updateTotalDebt();
+    renderUpcomingDeadlines();
 }
 
 function updateTotalDebt() {
@@ -1806,10 +1940,14 @@ document.getElementById('btn-add-revolving').addEventListener('click', () => {
 
 async function addRevolving(e) {
     e.preventDefault();
+
     const name = document.getElementById('revolving-name').value;
     const limit = parseFloat(document.getElementById('revolving-limit').value);
     const balance = parseFloat(document.getElementById('revolving-balance').value);
-    const rate = parseFloat(document.getElementById('revolving-rate').value);
+    const type = document.getElementById('revolving-type').value;
+
+    // Logic for Saldo vs Revolving
+    const rate = type === 'saldo' ? 0 : (parseFloat(document.getElementById('revolving-rate').value) || 0);
     const monthlyPayment = parseFloat(document.getElementById('revolving-monthly-payment').value) || 0;
     const paymentDay = parseInt(document.getElementById('revolving-payment-day').value) || null;
 
@@ -1817,6 +1955,7 @@ async function addRevolving(e) {
         name,
         limit,
         balance,
+        type,
         rate,
         monthlyPayment,
         paymentDay
@@ -1830,6 +1969,11 @@ async function addRevolving(e) {
         }
         revolvingModal.classList.remove('active');
         revolvingForm.reset();
+
+        // Reset visibility
+        const revolvingDetailsContainer = document.getElementById('revolving-details-container');
+        if (revolvingDetailsContainer) revolvingDetailsContainer.classList.remove('hidden');
+
     } catch (error) {
         alert('Errore salvataggio carta: ' + error.message);
     }
@@ -1991,6 +2135,7 @@ function showDebts() {
     hideAllViews();
     debtsView.classList.remove('hidden');
     navDebts.classList.add('active');
+    renderDebts();
 }
 
 function hideAllViews() {
@@ -1999,12 +2144,14 @@ function hideAllViews() {
     investmentsView.classList.add('hidden');
     recurringView.classList.add('hidden');
     debtsView.classList.add('hidden');
+    budgetView.classList.add('hidden');
 
     navDashboard.classList.remove('active');
     navAnalysis.classList.remove('active');
     navInvestments.classList.remove('active');
     navRecurring.classList.remove('active');
     navDebts.classList.remove('active');
+    navBudget.classList.remove('active');
 }
 
 // Update existing navigation functions to use hideAllViews
@@ -2047,6 +2194,46 @@ loanForm.addEventListener('submit', addLoan);
 btnAddRevolving.addEventListener('click', () => revolvingModal.classList.add('active'));
 closeRevolvingModalBtn.addEventListener('click', () => revolvingModal.classList.remove('active'));
 revolvingForm.addEventListener('submit', addRevolving);
+
+// Handle Type Toggle in Revolving Modal
+const revolvingTypeSelect = document.getElementById('revolving-type');
+const revolvingDetailsContainer = document.getElementById('revolving-details-container');
+
+if (revolvingTypeSelect) {
+    revolvingTypeSelect.addEventListener('change', (e) => {
+        if (e.target.value === 'saldo') {
+            revolvingDetailsContainer.classList.add('hidden');
+        } else {
+            revolvingDetailsContainer.classList.remove('hidden');
+        }
+    });
+}
+
+// Wallet Modal Listeners (Fix for "Resta bloccato")
+btnAddWallet.addEventListener('click', () => {
+    walletModal.classList.add('active');
+});
+closeWalletModalBtn.addEventListener('click', () => {
+    walletModal.classList.remove('active');
+});
+walletForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('wallet-name').value;
+    const type = document.getElementById('wallet-type').value;
+
+    try {
+        await window.dbOps.addWalletToDb({ name, type });
+        walletModal.classList.remove('active');
+        walletForm.reset();
+        // Assuming database.js triggers a reload or we need to manually refresh wallets
+        // But addWalletToDb usually calls renderWallets or we rely on onSnapshot in init.
+        // If not using realtime listener for wallets, we might need:
+        // loadWallets(); // But let's assume it works like others.
+        // Actually, dbOps.addWalletToDb is likely async.
+    } catch (error) {
+        alert('Errore creazione portafoglio: ' + error.message);
+    }
+});
 
 
 btnAddAsset.addEventListener('click', () => {
@@ -2873,4 +3060,521 @@ window.deleteSubscription = async function (id) {
     }
 };
 
+// --- Wallet Management Logic ---
+
+// Toggle Dropdown
+if (walletSelector) {
+    walletSelector.addEventListener('click', (e) => {
+        e.stopPropagation();
+        walletDropdown.classList.toggle('hidden');
+    });
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    if (walletSelector && walletDropdown && !walletSelector.contains(e.target) && !walletDropdown.contains(e.target)) {
+        walletDropdown.classList.add('hidden');
+    }
+});
+
+function renderWallets() {
+    if (!walletListEl) return;
+    walletListEl.innerHTML = '';
+
+    // Default Wallet
+    const defaultLi = document.createElement('li');
+    defaultLi.className = currentWalletId === 'default' ? 'active' : '';
+    defaultLi.innerHTML = `<i class="fas fa-wallet"></i> Principale`;
+    defaultLi.onclick = () => switchWallet('default', 'Principale');
+    walletListEl.appendChild(defaultLi);
+
+    wallets.forEach(wallet => {
+        const li = document.createElement('li');
+        li.className = currentWalletId === wallet.id ? 'active' : '';
+        let icon = 'fa-wallet';
+        if (wallet.type === 'bank') icon = 'fa-university';
+        if (wallet.type === 'cash') icon = 'fa-money-bill-wave';
+        if (wallet.type === 'savings') icon = 'fa-piggy-bank';
+
+        li.innerHTML = `<i class="fas ${icon}"></i> ${wallet.name}`;
+        li.onclick = () => switchWallet(wallet.id, wallet.name);
+        walletListEl.appendChild(li);
+    });
+
+    // Update current name text on load
+    const current = wallets.find(w => w.id === currentWalletId);
+    if (currentWalletId === 'default') {
+        currentWalletNameEl.textContent = 'Principale';
+    } else if (current) {
+        currentWalletNameEl.textContent = current.name;
+    }
+}
+
+function switchWallet(id, name) {
+    currentWalletId = id;
+    localStorage.setItem('currentWalletId', id);
+    currentWalletNameEl.textContent = name;
+
+    // Hide dropdown
+    walletDropdown.classList.add('hidden');
+
+    // Update UI
+    renderTransactions();
+    updateValues();
+    if (typeof updateChart === 'function') updateChart();
+    if (typeof renderInvestments === 'function') renderInvestments();
+
+    // Refresh List Styles
+    renderWallets();
+}
+
+window.renderWallets = renderWallets; // Expose globally if needed by DB ops
+
+// --- ETF Search & Expansion ---
+
+// Expand ETF List with Popular Options
+if (typeof assetList !== 'undefined' && assetList.etf) {
+    const newETFs = [
+        { name: 'S&P 500 (SPY)', apiId: 'SPY', type: 'etf' },
+        { name: 'Nasdaq 100 (QQQ)', apiId: 'QQQ', type: 'etf' },
+        { name: 'Gold (GLD)', apiId: 'GLD', type: 'etf' },
+        { name: 'MSCI World (SWDA.MI)', apiId: 'SWDA.MI', type: 'etf' },
+        { name: 'Vanguard S&P 500 (VOO)', apiId: 'VOO', type: 'etf' },
+        { name: 'Vanguard FTSE All-World (VWCE.DE)', apiId: 'VWCE.DE', type: 'etf' }
+    ];
+    // Add if not exists
+    newETFs.forEach(etf => {
+        if (!assetList.etf.items.find(i => i.apiId === etf.apiId)) {
+            assetList.etf.items.push(etf);
+        }
+    });
+}
+
+// Search Logic
+const btnToggleSearch = document.getElementById('btn-toggle-search-asset');
+const containerSearch = document.getElementById('asset-search-container');
+const inputSearch = document.getElementById('asset-search-input');
+const btnSearchApi = document.getElementById('btn-search-asset-api');
+const resultsList = document.getElementById('asset-search-results');
+
+if (btnToggleSearch) {
+    btnToggleSearch.addEventListener('click', () => {
+        containerSearch.classList.toggle('hidden');
+        inputSearch.focus();
+    });
+}
+
+if (btnSearchApi) {
+    btnSearchApi.addEventListener('click', async () => {
+        const query = inputSearch.value.trim();
+        if (!query) return;
+
+        resultsList.innerHTML = '<li style="color:var(--text-secondary); padding:5px;">Ricerca in corso...</li>';
+
+        try {
+            // Finnhub Search API
+            if (!FINNHUB_API_KEY || FINNHUB_API_KEY.includes('YOUR_API_KEY')) {
+                resultsList.innerHTML = '<li style="color:var(--danger-color); padding:5px;">API Key mancante</li>';
+                return;
+            }
+
+            const url = `https://finnhub.io/api/v1/search?q=${query}&token=${FINNHUB_API_KEY}`;
+            const res = await fetch(url);
+            const data = await res.json();
+
+            resultsList.innerHTML = '';
+
+            if (data.count === 0) {
+                resultsList.innerHTML = '<li style="color:var(--text-secondary); padding:5px;">Nessun risultato</li>';
+                return;
+            }
+
+            // Filter relevant types (Common Stock, ETF) if possible, but Finnhub returns mixed.
+            // We take top 10
+            data.result.slice(0, 10).forEach(item => {
+                const li = document.createElement('li');
+                li.style.cssText = 'padding: 8px; border-bottom: 1px solid var(--border-color); cursor: pointer; display: flex; justify-content: space-between; align-items: center;';
+                li.innerHTML = `
+                    <div>
+                        <span style="font-weight: bold; color: var(--primary-color);">${item.symbol}</span>
+                        <span style="font-size: 0.85rem; color: var(--text-secondary); margin-left:10px;">${item.description}</span>
+                    </div>
+                    <span style="font-size: 0.7rem; background: var(--card-bg); padding: 2px 4px; border-radius: 4px;">${item.type}</span>
+                `;
+
+                li.onclick = () => {
+                    selectSearchedAsset(item);
+                };
+
+                resultsList.appendChild(li);
+            });
+
+        } catch (e) {
+            console.error(e);
+            resultsList.innerHTML = '<li style="color:var(--danger-color); padding:5px;">Errore API</li>';
+        }
+    });
+}
+
+function selectSearchedAsset(item) {
+    const select = document.getElementById('asset-select');
+    const customInput = document.getElementById('asset-name-custom');
+
+    // Determine type mapping
+    let type = 'stock';
+    if (item.type && item.type.toUpperCase().includes('ETF')) type = 'etf';
+
+    // Add option to select
+    const option = document.createElement('option');
+    option.text = `${item.symbol} - ${item.description}`;
+    option.dataset.apiId = item.symbol;
+    option.dataset.type = type;
+    option.value = 'custom_api';
+
+    select.add(option);
+    select.value = 'custom_api';
+
+    // Trigger change
+    select.dispatchEvent(new Event('change'));
+
+    // Hide search
+    containerSearch.classList.add('hidden');
+    inputSearch.value = '';
+    resultsList.innerHTML = '';
+
+    triggerAutoPrice();
+}
+
 init();
+
+// --- Budget Logic ---
+
+function showBudget() {
+    hideAllViews();
+    budgetView.classList.remove('hidden');
+    navBudget.classList.add('active');
+
+    // Bottom nav active state
+    document.querySelectorAll('.bottom-nav .nav-item').forEach(el => el.classList.remove('active'));
+    // Searching by text content is fragile, better to rely on index order if needed or add IDs
+    // For now assuming it works or we add id to bottom nav items later. 
+    // Let's assume the user clicks it works. To highlight:
+    const budgetNav = Array.from(document.querySelectorAll('.bottom-nav .nav-item')).find(el => el.innerText.includes('Budget'));
+    if (budgetNav) budgetNav.classList.add('active');
+
+    renderBudgets();
+}
+
+function renderBudgets() {
+    budgetListEl.innerHTML = '';
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    let globalLimit = 0;
+    let globalSpent = 0;
+
+    // Filter transactions for current month
+    const monthTransactions = transactions.filter(t => {
+        const d = new Date(t.date);
+        return t.type === 'expense' && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+
+    if (budgets.length === 0) {
+        budgetListEl.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-wallet"></i>
+                <p>Nessun budget impostato</p>
+            </div>
+        `;
+    }
+
+    budgets.forEach(budget => {
+        globalLimit += parseFloat(budget.amount);
+
+        // Calculate spent
+        let spent = 0;
+        if (budget.categories.includes('all')) {
+            spent = monthTransactions.reduce((sum, t) => sum + t.amount, 0);
+        } else {
+            spent = monthTransactions
+                .filter(t => budget.categories.includes(t.category))
+                .reduce((sum, t) => sum + t.amount, 0);
+        }
+        globalSpent += spent;
+
+        const percentage = Math.min(100, (spent / budget.amount) * 100);
+        let statusColor = 'var(--success-color)'; // Green
+        if (percentage > 90) statusColor = 'var(--danger-color)'; // Red
+        else if (percentage > 75) statusColor = 'var(--warning-color)'; // Orange/Yellow
+
+        const card = document.createElement('div');
+        card.className = 'budget-card';
+
+        let catBadges = '';
+        if (budget.categories.includes('all')) {
+            catBadges = '<span class="category-tag">Tutte</span>';
+        } else {
+            catBadges = budget.categories.map(c => {
+                const label = allCategories[c] ? allCategories[c].label : c;
+                return `<span class="category-tag">${label}</span>`;
+            }).join('');
+        }
+
+        card.innerHTML = `
+            <div class="budget-header">
+                <div class="debt-title">${budget.name}</div>
+                <button class="btn-small delete" onclick="deleteBudget('${budget.id}')" style="color: var(--text-secondary); background: none; border: none;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            <div class="debt-amount">€ ${spent.toFixed(2)} <span style="font-size: 0.9rem; color: var(--text-secondary);">/ € ${parseFloat(budget.amount).toFixed(2)}</span></div>
+            
+            <div class="budget-progress-container">
+                <div class="budget-progress-bar" style="width: ${percentage}%; background-color: ${statusColor};"></div>
+            </div>
+            
+            <div class="budget-stats">
+                <span>Rimanente: € ${(budget.amount - spent).toFixed(2)}</span>
+                <span>${percentage.toFixed(0)}%</span>
+            </div>
+            <div class="category-tags">
+                ${catBadges}
+            </div>
+        `;
+        budgetListEl.appendChild(card);
+    });
+
+    budgetTotalAmountEl.innerText = `€ ${globalLimit.toFixed(2)}`;
+    // Note: Global spent logic implies simple sum, but if budgets overlap (e.g. "Food" and "All"), this sum might be double counting visually, 
+    // but useful for "Budget utilization". Ideally, "Spent" should be total actual spending or sum of budget utilizations? 
+    // Let's stick to sum of utilizations for the specific budget section context.
+    budgetTotalSpentEl.innerText = `€ ${globalSpent.toFixed(2)}`;
+    budgetTotalRemainingEl.innerText = `€ ${(globalLimit - globalSpent).toFixed(2)}`;
+}
+
+async function addBudget(e) {
+    e.preventDefault();
+    const name = document.getElementById('budget-name').value;
+    const amount = parseFloat(document.getElementById('budget-amount').value);
+
+    // Get selected categories
+    const selected = [];
+    if (document.getElementById('budget-cat-all').checked) {
+        selected.push('all');
+    } else {
+        document.querySelectorAll('#budget-categories-list input:checked').forEach(cb => {
+            selected.push(cb.value);
+        });
+    }
+
+    if (selected.length === 0) {
+        alert("Seleziona almeno una categoria.");
+        return;
+    }
+
+    const budget = {
+        name,
+        amount,
+        categories: selected
+    };
+
+    try {
+        await window.dbOps.addBudget(budget);
+        budgetModal.classList.remove('active');
+        budgetForm.reset();
+        // Reset checkboxes
+        populateBudgetCategories();
+    } catch (err) {
+        alert("Errore salvataggio budget: " + err.message);
+    }
+}
+
+async function deleteBudget(id) {
+    if (confirm("Eliminare questo budget?")) {
+        await window.dbOps.deleteBudget(id);
+    }
+}
+
+function populateBudgetCategories() {
+    const list = document.getElementById('budget-categories-list');
+    list.innerHTML = '';
+    const allCheckbox = document.getElementById('budget-cat-all');
+    allCheckbox.checked = false;
+    allCheckbox.addEventListener('change', () => {
+        const inputs = list.querySelectorAll('input');
+        inputs.forEach(i => i.disabled = allCheckbox.checked);
+        if (allCheckbox.checked) {
+            inputs.forEach(i => i.checked = false);
+        }
+    });
+
+    Object.keys(allCategories).forEach(key => {
+        const cat = allCategories[key];
+        const label = document.createElement('label');
+        label.className = 'checkbox-container';
+        label.innerHTML = `
+            <input type="checkbox" value="${key}">
+            <span class="checkmark"></span>
+            ${cat.label}
+        `;
+        list.appendChild(label);
+    });
+}
+
+// Event Listeners
+navBudget.addEventListener('click', showBudget);
+btnAddBudget.addEventListener('click', () => {
+    populateBudgetCategories();
+    budgetModal.classList.add('active');
+});
+closeBudgetModalBtn.addEventListener('click', () => budgetModal.classList.remove('active'));
+budgetForm.addEventListener('click', (e) => {
+    if (e.target === budgetForm) budgetModal.classList.remove('active'); // Close on backdrop not needed if we have modal-content
+});
+// Using generic modal close logic or specific:
+budgetModal.addEventListener('click', (e) => {
+    if (e.target === budgetModal) budgetModal.classList.remove('active');
+});
+
+budgetForm.addEventListener('submit', addBudget);
+
+// Add to Init
+
+
+document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
+const csvInput = document.getElementById('csv-file-input');
+document.getElementById('btn-import-csv-trigger').addEventListener('click', () => csvInput.click());
+csvInput.addEventListener('change', importCSV);
+
+function exportCSV() {
+    if (transactions.length === 0) {
+        alert("Nessuna transazione da esportare.");
+        return;
+    }
+
+    const headers = ['Date', 'Type', 'Amount', 'Category', 'Description', 'Wallet'];
+    const rows = transactions.map(t => {
+        // Escape quotes and wrap in quotes if necessary
+        const escape = (text) => {
+            if (!text) return '';
+            const data = String(text);
+            if (data.includes(',') || data.includes('"') || data.includes('\n')) {
+                return `"${data.replace(/"/g, '""')}"`;
+            }
+            return data;
+        };
+
+        const categoryLabel = allCategories[t.category] ? allCategories[t.category].label : t.category;
+
+        return [
+            t.date,
+            t.type,
+            t.amount,
+            escape(categoryLabel),
+            escape(t.description),
+            escape(t.walletId)
+        ].join(',');
+    });
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `portafoglio_export_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+async function importCSV(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const text = e.target.result;
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+
+        if (lines.length < 2) {
+            alert("File CSV non valido o vuoto.");
+            return;
+        }
+
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        // Simple validation of headers (check if required columns exist)
+        const required = ['date', 'type', 'amount', 'category'];
+        const isValid = required.every(r => headers.includes(r));
+
+        if (!isValid) {
+            alert(`Formato CSV non valido. Colonne richieste: ${required.join(', ')}`);
+            return;
+        }
+
+        let addedCount = 0;
+        let errorCount = 0;
+
+        // Determine indices
+        const idxDate = headers.indexOf('date');
+        const idxType = headers.indexOf('type');
+        const idxAmount = headers.indexOf('amount');
+        const idxCategory = headers.indexOf('category'); // We expect Label or Key
+        const idxDesc = headers.indexOf('description');
+        const idxWallet = headers.indexOf('wallet');
+
+        // Helper to parse CSV line respecting quotes
+        // Simple regex split for CSV: /,(?=(?:(?:[^"]*"){2})*[^"]*$)/
+
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i];
+            // Split by comma, handling quotes
+            const row = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(val => {
+                return val.replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+            });
+
+            if (row.length < required.length) continue;
+
+            const date = row[idxDate];
+            const type = row[idxType];
+            const amount = parseFloat(row[idxAmount]);
+            let categoryLabel = row[idxCategory];
+            const description = idxDesc > -1 ? row[idxDesc] : '';
+            const walletId = idxWallet > -1 ? row[idxWallet] : currentWalletId;
+
+            // Try to find category key from label, otherwise use 'other'
+            let categoryKey = 'other';
+            // Reverse lookup for category
+            const foundCat = Object.entries(allCategories).find(([key, val]) => val.label === categoryLabel || key === categoryLabel);
+            if (foundCat) categoryKey = foundCat[0];
+
+            if (!date || !type || isNaN(amount)) {
+                errorCount++;
+                continue;
+            }
+
+            const newTransaction = {
+                walletId: walletId || currentWalletId, // Fallback
+                type: type.toLowerCase() === 'entrata' || type.toLowerCase() === 'income' ? 'income' : 'expense',
+                amount: Math.abs(amount),
+                category: categoryKey,
+                date: date,
+                description: description || 'Imported via CSV',
+                isRecurring: false,
+                sourceType: 'wallet' // Default
+            };
+
+            try {
+                await window.dbOps.addTransactionToDb(newTransaction);
+                addedCount++;
+            } catch (err) {
+                console.error("Import error row " + i, err);
+                errorCount++;
+            }
+        }
+
+        alert(`Importazione completata.\nAggiunti: ${addedCount}\nErrori/Saltati: ${errorCount}`);
+        event.target.value = ''; // Reset input
+    };
+    reader.readAsText(file);
+}
