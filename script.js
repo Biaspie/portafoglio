@@ -2879,7 +2879,14 @@ window.showAssetDetails = function (groupId) {
         let allHistory = [];
         groupAssets.forEach(asset => {
             if (asset.history && Array.isArray(asset.history)) {
-                allHistory = allHistory.concat(asset.history);
+                // Attach assetId and original index to each item for deletion
+                const assetHistory = asset.history.map((item, index) => ({
+                    ...item,
+                    _assetId: asset.id,
+                    _index: index,
+                    _isSynthetic: false
+                }));
+                allHistory = allHistory.concat(assetHistory);
             } else {
                 // Synthesize history if missing
                 allHistory.push({
@@ -2887,7 +2894,9 @@ window.showAssetDetails = function (groupId) {
                     type: 'buy',
                     quantity: asset.quantity,
                     invested: asset.invested,
-                    price: asset.quantity ? (asset.invested / asset.quantity) : 0
+                    price: asset.quantity ? (asset.invested / asset.quantity) : 0,
+                    _assetId: asset.id,
+                    _isSynthetic: true
                 });
             }
         });
@@ -2897,12 +2906,28 @@ window.showAssetDetails = function (groupId) {
 
         allHistory.forEach(entry => {
             const tr = document.createElement('tr');
+
+            // Delete Action
+            let deleteAction = '';
+            if (!entry._isSynthetic) {
+                deleteAction = `
+                    <button onclick="deleteAssetHistoryItem('${entry._assetId}', ${entry._index})" 
+                            style="background:none; border:none; color:var(--danger-color); cursor:pointer;" 
+                            title="Elimina">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+            } else {
+                deleteAction = `<span style="color:var(--text-secondary); opacity:0.5;">-</span>`;
+            }
+
             tr.innerHTML = `
                 <td>${entry.date ? new Date(entry.date).toLocaleDateString() : '-'}</td>
                 <td>${entry.type === 'buy' ? 'Acquisto' : 'Vendita'}</td>
                 <td>${(parseFloat(entry.quantity) || 0).toFixed(4)}</td>
                 <td>€ ${(parseFloat(entry.price) || 0).toFixed(2)}</td>
                 <td>€ ${(parseFloat(entry.invested) || 0).toFixed(2)}</td>
+                <td style="text-align: center;">${deleteAction}</td>
             `;
             historyBody.appendChild(tr);
         });
@@ -2932,24 +2957,24 @@ function toggleTransactionFilters() {
 }
 
 function populateFilterCategories() {
-    filterCategorySelect.innerHTML = '<option value="all">Tutte le Categorie</option>';
+    const select = document.getElementById('filter-category');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="all">Tutte le Categorie</option>';
 
-    // Combine standard categories with used custom categories if any
-    const categories = new Set();
+    if (typeof allCategories !== 'undefined') {
+        const sortedKeys = Object.keys(allCategories).sort((a, b) => {
+            return (allCategories[a].label || a).localeCompare(allCategories[b].label || b);
+        });
 
-    // Add standard expense categories
-    Object.keys(expenseCategories).forEach(key => categories.add(key));
-    // Add standard income categories
-    Object.keys(incomeCategories).forEach(key => categories.add(key));
-
-    // Sort and Create Options
-    Array.from(categories).sort().forEach(catKey => {
-        const cat = allCategories[catKey] || { label: catKey };
-        const option = document.createElement('option');
-        option.value = catKey;
-        option.textContent = cat.label;
-        filterCategorySelect.appendChild(option);
-    });
+        sortedKeys.forEach(key => {
+            const cat = allCategories[key];
+            const option = document.createElement('option');
+            option.value = key;
+            option.textContent = cat.label;
+            select.appendChild(option);
+        });
+    }
 }
 
 function applyTransactionFilters() {
@@ -3970,7 +3995,7 @@ function renderBudgets() {
 
     budgets.forEach(budget => {
         // Safe access
-        if (!budget.amount || !budget.categories) {
+        if (budget.amount === undefined || budget.amount === null || !budget.categories) {
             console.warn("Invalid budget data:", budget);
             return;
         }
@@ -4882,3 +4907,63 @@ function generateFinancialReport(selectedYear = null) {
 
 
 
+
+// Helper Recalculation after Deletion
+
+
+// Helper Recalculation after Deletion
+window.deleteAssetHistoryItem = async function (assetId, index) {
+    if (!confirm('Eliminare questa voce dallo storico? Il totale verrà ricalcolato.')) return;
+
+    const asset = investments.find(a => a.id === assetId);
+    if (!asset || !asset.history) {
+        alert('Asset o storico non trovato.');
+        return;
+    }
+
+    const deletedItem = asset.history[index];
+    const newHistory = asset.history.filter((_, i) => i !== index);
+
+    let newInvested = 0;
+    let newQuantity = 0;
+
+    newHistory.forEach(h => {
+        const qty = parseFloat(h.quantity) || 0;
+        const inv = parseFloat(h.invested) || 0;
+
+        if (h.type === 'buy') {
+            newQuantity += qty;
+            newInvested += inv;
+        } else if (h.type === 'sell') {
+            newQuantity -= qty;
+            newInvested -= inv;
+        }
+    });
+
+    if (newQuantity < 0) newQuantity = 0;
+
+    let currentPrice = 0;
+    if (asset.quantity > 0) {
+        currentPrice = asset.current / asset.quantity;
+    }
+    const newCurrent = newQuantity * currentPrice;
+
+    try {
+        await window.dbOps.updateInvestment(assetId, {
+            history: newHistory,
+            quantity: newQuantity,
+            invested: newInvested,
+            current: newCurrent
+        });
+        
+        setTimeout(() => {
+            if (document.getElementById('asset-details-modal').classList.contains('active')) {
+                showAssetDetails(getAssetGroupId(asset)); 
+            }
+        }, 500);
+
+    } catch (e) {
+        console.error(e);
+        alert('Errore durante la cancellazione: ' + e.message);
+    }
+};

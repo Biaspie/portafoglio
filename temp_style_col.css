@@ -1,0 +1,16 @@
+/* Adjust History Table to fit Delete Column */
+.history-table th:nth-child(4),
+.history-table td:nth-child(4) {
+    width: 20%;
+}
+
+.history-table th:nth-child(5),
+.history-table td:nth-child(5) {
+    width: 20%;
+}
+
+.history-table th:nth-child(6),
+.history-table td:nth-child(6) {
+    width: 10%;
+    text-align: center;
+}

@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if the user is authenticated and is the owner of the document
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Match the users collection and the specific user document
+    match /users/{userId} {
+      // Allow the user to read/write their own user document
+      allow read, write: if isOwner(userId);
+
+      // Match any subcollection under the user's document (recursive)
+      match /{document=**} {
+        // Allow the user to read/write any subcollection/document within their user doc
+        allow read, write: if isOwner(userId);
+      }
+    }
+  }
+}
