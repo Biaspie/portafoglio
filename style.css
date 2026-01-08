@@ -23,6 +23,18 @@
     --shadow-subtle: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+[data-theme="light"] {
+    /* Light Palette */
+    --bg-color: #f5f6fa;
+    --card-bg: #ffffff;
+    --text-primary: #2c3e50;
+    --text-secondary: #7f8c8d;
+    --border-color: #dcdde1;
+    --shadow-subtle: 0 4px 6px rgba(0, 0, 0, 0.05);
+
+    /* Slightly darker accents for light bg if needed, but defaults are okay */
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -137,6 +149,11 @@ body {
     gap: 8px;
 }
 
+/* Global Fixes */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
 .nav-links li {
     display: flex;
     align-items: center;
@@ -144,14 +161,22 @@ body {
     padding: 12px 15px;
     border-radius: var(--radius-md);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    /* Optimized transition */
     color: var(--text-secondary);
     font-weight: 400;
 }
 
-.nav-links li:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-    color: var(--text-primary);
+@media (hover: hover) {
+    .nav-links li:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary);
+    }
+}
+
+.nav-links li:active {
+    background-color: rgba(255, 255, 255, 0.08);
+    transform: scale(0.98);
 }
 
 .nav-links li.active {
@@ -1427,11 +1452,40 @@ input[type="radio"]:checked+.type-label.income {
     color: var(--danger-color);
 }
 
+/* Redesigned Asset Details */
 .asset-details-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     gap: 15px;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
+}
+
+/* Individual detail card styling */
+.asset-details-grid>div {
+    background-color: var(--bg-secondary);
+    padding: 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.detail-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.detail-value {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    word-break: break-all;
+    /* Prevent overflow for very long numbers */
+    line-height: 1.2;
 }
 
 /* Budget Styles */
@@ -1969,6 +2023,288 @@ input[type="radio"]:checked+.type-label.income {
     .bottom-nav {
         display: none !important;
     }
-}  
-/* Safe Area Fixes */  
-@supports (padding-top: env(safe-area-inset-top)) { .mobile-header { padding-top: env(safe-area-inset-top); height: calc(60px + env(safe-area-inset-top)); } body { background-color: var(--bg-color); } .modal-content { margin-top: env(safe-area-inset-top); } } 
+}
+
+/* Safe Area Fixes */
+@supports (padding-top: env(safe-area-inset-top)) {
+    .mobile-header {
+        padding-top: env(safe-area-inset-top);
+        height: calc(60px + env(safe-area-inset-top));
+    }
+
+    body {
+        background-color: var(--bg-color);
+    }
+
+    .modal-content {
+        margin-top: env(safe-area-inset-top);
+    }
+}
+
+/* History Table Styles */
+/* History Table Styles */
+.history-table {
+    width: 100%;
+    min-width: 600px;
+    /* Force horizontal scroll on mobile */
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 0.9rem;
+    table-layout: fixed;
+    /* Respect column widths */
+}
+
+.history-table th,
+.history-table td {
+    padding: 10px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+    /* Keep on one line */
+    /* Removed overflow/ellipsis to allow full text */
+}
+
+.history-table th {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.history-table td {
+    color: var(--text-primary);
+}
+
+/* Specific Column Widths */
+.history-table th:nth-child(1),
+.history-table td:nth-child(1) {
+    width: 22%;
+}
+
+/* Data */
+.history-table th:nth-child(2),
+.history-table td:nth-child(2) {
+    width: 18%;
+}
+
+/* Tipo */
+.history-table th:nth-child(3),
+.history-table td:nth-child(3) {
+    width: 15%;
+}
+
+/* Qtà */
+.history-table th:nth-child(4),
+.history-table td:nth-child(4) {
+    width: 22.5%;
+    text-align: right;
+}
+
+/* Prezzo */
+.history-table th:nth-child(5),
+.history-table td:nth-child(5) {
+    width: 22.5%;
+    text-align: right;
+}
+
+/* Totale */
+.history-table th:nth-child(4),
+.history-table td:nth-child(4) {
+    text-align: right;
+}
+
+@media (max-width: 768px) {
+
+    /* Main Content Adjustments */
+    .main-content {
+        margin-left: 0;
+        padding: 20px;
+        padding-top: 90px;
+        /* Header + Space */
+        padding-bottom: 100px;
+        /* Nav + Space */
+        width: 100%;
+    }
+
+    /* Bottom Navigation */
+    .bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background-color: var(--card-bg);
+        /* Solid background */
+        border-top: 1px solid var(--border-color);
+        padding: 10px 0;
+        justify-content: space-around;
+        z-index: 1000;
+        padding-bottom: env(safe-area-inset-bottom, 15px);
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+        /* Stronger shadow */
+    }
+
+    .bottom-nav .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        color: var(--text-secondary);
+        font-size: 0.7rem;
+        gap: 5px;
+        cursor: pointer;
+        width: 16%;
+        /* Distributed width */
+        transition: all 0.2s;
+    }
+
+    .bottom-nav .nav-item i {
+        font-size: 1.3rem;
+        margin-bottom: 2px;
+    }
+
+    .bottom-nav .nav-item.active {
+        color: var(--primary-color);
+    }
+
+    .bottom-nav .nav-item.active i {
+        transform: translateY(-2px);
+    }
+
+    /* Analysis View Mobile Fixes */
+    .charts-grid {
+        grid-template-columns: 1fr !important;
+        gap: 20px;
+    }
+
+    .chart-container,
+    .pie-container {
+        height: auto;
+        min-height: 250px;
+        /* Flexible height */
+        max-height: 300px;
+        width: 100%;
+    }
+
+    .month-selector {
+        justify-content: space-between;
+        background: var(--bg-secondary);
+        padding: 10px;
+        border-radius: var(--radius-md);
+        margin-bottom: 25px;
+    }
+
+    /* General Card Stacking */
+    .investments-grid,
+    .budget-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Modal Mobile */
+    .modal-content {
+        width: 100%;
+        height: auto;
+        /* Allow auto height */
+        max-height: 85vh;
+        position: absolute;
+        bottom: 0;
+        margin: 0;
+        border-radius: 20px 20px 0 0;
+        padding-bottom: 40px;
+    }
+
+    .modal {
+        padding: 0;
+        align-items: flex-end;
+    }
+}
+
+/* Financial Report Year Selector */
+.report-year-select {
+    padding: 8px 12px;
+    /* Increased padding for better touch/click */
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    font-size: 1rem;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s, background-color 0.2s;
+    /* Ensure appearance matches custom design */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    /* Add a custom arrow if desired, or simple backup */
+    background-image: linear-gradient(45deg, transparent 50%, var(--text-primary) 50%),
+        linear-gradient(135deg, var(--text-primary) 50%, transparent 50%);
+    background-position: calc(100% - 15px) calc(1em + 2px),
+        calc(100% - 10px) calc(1em + 2px);
+    background-size: 5px 5px,
+        5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 30px;
+    /* Space for arrow */
+}
+
+/* Hover/Focus states */
+.report-year-select:hover,
+.report-year-select:focus {
+    border-color: var(--primary-color);
+}
+
+/* Dark Mode Options (Browser dependent but helps) */
+.report-year-select option {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    padding: 10px;
+}
+
+/* Toast Notification */
+.toast-container {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border-left: 4px solid var(--primary-color);
+    animation: slideUpFade 0.3s ease-out;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 90vw;
+}
+
+.toast.success {
+    border-color: #2ecc71;
+}
+
+.toast.error {
+    border-color: #e74c3c;
+}
+
+.toast.info {
+    border-color: #3498db;
+}
+
+@keyframes slideUpFade {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

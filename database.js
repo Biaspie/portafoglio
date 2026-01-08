@@ -42,6 +42,17 @@ const createWallet = async (walletData) => {
 
 // --- Transactions ---
 
+const updateTransaction = async (id, updates) => {
+    const userRef = getUserRef();
+    if (!userRef) return;
+    try {
+        await userRef.collection('transactions').doc(id).update(updates);
+    } catch (error) {
+        console.error('Error updating transaction:', error);
+        throw error;
+    }
+};
+
 // Add transaction
 const addTransactionToDb = async (transaction) => {
     const userRef = getUserRef();
@@ -65,7 +76,7 @@ const subscribeToTransactions = (callback) => {
     if (!userRef) return () => { };
 
     return userRef.collection('transactions')
-        .orderBy('date', 'desc')
+        .orderBy('createdAt', 'desc')
         .onSnapshot((snapshot) => {
             const transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             callback(transactions);
@@ -232,6 +243,7 @@ window.dbOps = {
     getWallets,
     createWallet,
     addTransactionToDb,
+    updateTransaction,
     subscribeToTransactions,
     deleteTransactionFromDb,
     addInvestmentToDb,
