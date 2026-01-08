@@ -221,22 +221,23 @@ async function initWallets() {
 }
 
 function renderWalletList() {
-    walletListEl.innerHTML = '';
-    walletSelectTransaction.innerHTML = ''; // Populate transaction modal select too
+    // Only update transaction select, sidebar is handled by renderWallets()
+    if (!walletSelectTransaction) return;
+
+    walletSelectTransaction.innerHTML = ''; // Populate transaction modal select
+
+    // Add Default "Principale" if needed for transaction assignment?
+    // Usually 'default' is the main wallet.
+    // Ensure we have an option for the default wallet if it's not in the wallets array
+    // (Local check: assuming wallets array contains custom wallets)
+
+    const defaultOption = document.createElement('option');
+    defaultOption.value = 'default';
+    defaultOption.textContent = 'Principale';
+    if (currentWalletId === 'default') defaultOption.selected = true;
+    walletSelectTransaction.appendChild(defaultOption);
 
     wallets.forEach(wallet => {
-        // Sidebar List Item
-        const li = document.createElement('li');
-        li.innerHTML = `
-            <i class="fas fa-${getWalletIcon(wallet.type)}"></i>
-            <span>${wallet.name}</span>
-        `;
-        if (wallet.id === currentWalletId) {
-            li.classList.add('active');
-        }
-        li.addEventListener('click', () => switchWallet(wallet.id));
-        walletListEl.appendChild(li);
-
         // Transaction Modal Option
         const option = document.createElement('option');
         option.value = `wallet_${wallet.id}`; // Prefix to distinguish
@@ -2676,14 +2677,15 @@ walletForm.addEventListener('submit', async (e) => {
     const type = document.getElementById('wallet-type').value;
 
     try {
-        await window.dbOps.addWalletToDb({ name, type });
+        await window.dbOps.createWallet({ name, type });
         walletModal.classList.remove('active');
         walletForm.reset();
-        // Assuming database.js triggers a reload or we need to manually refresh wallets
-        // But addWalletToDb usually calls renderWallets or we rely on onSnapshot in init.
-        // If not using realtime listener for wallets, we might need:
-        // loadWallets(); // But let's assume it works like others.
-        // Actually, dbOps.addWalletToDb is likely async.
+
+        // Refresh Wallets
+        wallets = await window.dbOps.getWallets();
+        renderWallets();
+        renderWalletList(); // Update selects
+
     } catch (error) {
         alert('Errore creazione portafoglio: ' + error.message);
     }
@@ -2959,7 +2961,7 @@ function toggleTransactionFilters() {
 function populateFilterCategories() {
     const select = document.getElementById('filter-category');
     if (!select) return;
-    
+
     select.innerHTML = '<option value="all">Tutte le Categorie</option>';
 
     if (typeof allCategories !== 'undefined') {
@@ -4955,10 +4957,10 @@ window.deleteAssetHistoryItem = async function (assetId, index) {
             invested: newInvested,
             current: newCurrent
         });
-        
+
         setTimeout(() => {
             if (document.getElementById('asset-details-modal').classList.contains('active')) {
-                showAssetDetails(getAssetGroupId(asset)); 
+                showAssetDetails(getAssetGroupId(asset));
             }
         }, 500);
 
