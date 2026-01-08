@@ -4116,15 +4116,24 @@ function renderBudgets() {
 // Editing State
 let currentEditingBudgetId = null;
 
+// Budget Functions
 async function addBudget(e) {
     e.preventDefault();
-    const name = document.getElementById('budget-name').value;
-    const amount = parseFloat(document.getElementById('budget-amount').value);
-    const startDay = parseInt(document.getElementById('budget-start-day').value) || 1;
+    console.log("Adding/Updating Budget...");
+
+    const nameInput = document.getElementById('budget-name');
+    const amountInput = document.getElementById('budget-amount');
+    const startDayInput = document.getElementById('budget-start-day');
+
+    const name = nameInput.value;
+    const amount = parseFloat(amountInput.value);
+    const startDay = parseInt(startDayInput.value) || 1;
 
     // Get selected categories
     const selected = [];
-    if (document.getElementById('budget-cat-all').checked) {
+    const allCatCheckbox = document.getElementById('budget-cat-all');
+
+    if (allCatCheckbox && allCatCheckbox.checked) {
         selected.push('all');
     } else {
         document.querySelectorAll('#budget-categories-list input:checked').forEach(cb => {
@@ -4137,6 +4146,11 @@ async function addBudget(e) {
         return;
     }
 
+    if (!name || isNaN(amount) || amount <= 0) {
+        alert("Inserisci un nome e un importo valido.");
+        return;
+    }
+
     const budgetData = {
         name,
         amount,
@@ -4144,11 +4158,11 @@ async function addBudget(e) {
         startDay
     };
 
-    console.log("Saving budget:", budgetData);
+    console.log("Budget Payload:", budgetData);
 
     try {
-        if (typeof window.dbOps.addBudget !== 'function') {
-            throw new Error("Funzione addBudget non trovata. Ricarica la pagina.");
+        if (!window.dbOps || typeof window.dbOps.addBudget !== 'function') {
+            throw new Error("Database operations not initialized.");
         }
 
         if (currentEditingBudgetId) {
@@ -4160,10 +4174,21 @@ async function addBudget(e) {
             console.log("Creating new budget");
             await window.dbOps.addBudget(budgetData);
         }
-        console.log("Budget saved successfully");
+
+        console.log("Budget operation successful");
         budgetModal.classList.remove('active');
-        budgetForm.reset();
-        currentEditingBudgetId = null; // Reset
+        document.getElementById('budget-form').reset();
+        currentEditingBudgetId = null;
+
+        // Force refresh explicitly in case listener is slow
+        budgets = await new Promise(resolve => {
+            const unsub = window.dbOps.subscribeToBudgets(data => {
+                unsub(); // One-time fetch effectively
+                resolve(data);
+            });
+        });
+        renderBudgets();
+
     } catch (err) {
         console.error("Budget save error:", err);
         alert("Errore salvataggio budget: " + err.message);
@@ -4237,9 +4262,9 @@ btnAddBudget.addEventListener('click', () => {
     budgetModal.classList.add('active');
 });
 closeBudgetModalBtn.addEventListener('click', () => budgetModal.classList.remove('active'));
-budgetForm.addEventListener('click', (e) => {
-    if (e.target === budgetForm) budgetModal.classList.remove('active'); // Close on backdrop not needed if we have modal-content
-});
+// budgetForm.addEventListener('click', (e) => {
+//     if (e.target === budgetForm) budgetModal.classList.remove('active'); 
+// });
 // Using generic modal close logic or specific:
 budgetModal.addEventListener('click', (e) => {
     if (e.target === budgetModal) budgetModal.classList.remove('active');
